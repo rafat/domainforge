@@ -1,0 +1,131 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Domain {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  tokenId      String   @unique
+  owner        String
+  contractAddress String
+  chainId      Int
+  
+  // Domain registration info
+  registrationDate DateTime @default(now())
+  expiry       DateTime?
+  
+  // Landing page data
+  title        String?
+  description  String?
+  template     String   @default("default")
+  customCSS    String?
+  isActive     Boolean  @default(true)
+  
+  // Analytics
+  views        Int      @default(0)
+  
+  // SEO data
+  screenshot   String?
+  metaTitle    String?
+  metaDescription String?
+  
+  // Pricing and marketplace
+  forSale      Boolean  @default(false)
+  price        Decimal? @db.Decimal(18, 6)
+  buyNowPrice  String?
+  acceptOffers Boolean  @default(true)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  offers       Offer[]
+  transactions Transaction[]
+  dnsRecords   DnsRecord[]
+  
+  @@map("domains")
+}
+
+model Offer {
+  id          String   @id @default(cuid())
+  domainId    String
+  domain      Domain   @relation(fields: [domainId], references: [id])
+  
+  buyer       String
+  amount      String
+  message     String?
+  status      OfferStatus @default(PENDING)
+  expiry      DateTime?
+  
+  txHash      String?
+  blockNumber Int?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("offers")
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  domainId    String
+  domain      Domain   @relation(fields: [domainId], references: [id])
+  
+  buyer       String
+  seller      String
+  amount      String
+  txHash      String
+  blockNumber Int?
+  status      TransactionStatus @default(PENDING)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("transactions")
+}
+
+model DnsRecord {
+  id       String @id @default(cuid())
+  domainId String
+  domain   Domain @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  
+  type     String // A, AAAA, CNAME, MX, TXT, etc.
+  name     String
+  value    String
+  ttl      Int    @default(3600)
+  priority Int?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@map("dns_records")
+}
+
+model Analytics {
+  id          String   @id @default(cuid())
+  tokenId     String
+  eventType   String
+  userAddress String?
+  metadata    String?
+  timestamp   DateTime @default(now())
+  
+  @@map("analytics")
+}
+
+enum TransactionStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
