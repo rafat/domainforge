@@ -40,6 +40,22 @@ interface MessageBubbleProps {
 }
 function MessageBubble({ message, isOwn }: MessageBubbleProps) {
   const isOffer = message.messageType === 'offer'
+  const isSystem = message.messageType === 'system'
+  
+  if (isSystem) {
+    return (
+      <div className="flex justify-center">
+        <div className="max-w-xs lg:max-w-md">
+          <div className="px-4 py-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-sm">
+            <div className="flex items-center space-x-2">
+              <span>🔔</span>
+              <span>{message.content}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
   
   return (
     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>

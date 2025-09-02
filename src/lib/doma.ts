@@ -90,21 +90,57 @@ export class DomaService {
     }
   }
   
-  async createOffer(tokenId: string, amount: string, signer: any, orderParams: any) {
+  async createOffer(tokenId: string, amount: string, currency: string = 'ETH') {
     try {
-      // For API-first approach, we would use Doma's Orderbook API
-      // This is a placeholder implementation that would need to be
-      // connected to the actual REST API endpoints
+      // Get token information to prepare offer parameters
+      const token = await this.getDomainInfo(tokenId);
       
-      // In a complete implementation, this would:
-      // 1. Prepare offer parameters
-      // 2. Sign the offer using the wallet
-      // 3. Submit to Doma's Orderbook API
-      // 4. Return the response
+      if (!token) {
+        throw new Error('Domain not found');
+      }
       
-      throw new Error('Offer creation via API not yet implemented - need to integrate with Doma Orderbook API')
+      // Prepare offer parameters for Doma's Orderbook API
+      const offerData = {
+        orderbook: 'DOMA', // Use Doma's orderbook
+        chainId: 'eip155:97476', // Doma testnet chain ID
+        parameters: {
+          offerer: token.owner, // The buyer making the offer
+          zone: '0x0000000000000000000000000000000000000000', // No zone for now
+          orderType: 2, // Partial fillable offer
+          startTime: Math.floor(Date.now() / 1000).toString(), // Current time
+          endTime: (Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60).toString(), // 7 days from now
+          zoneHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+          salt: Math.floor(Math.random() * 1000000).toString(),
+          offer: [
+            {
+              itemType: 1, // ERC20
+              token: '0x0000000000000000000000000000000000000000', // ETH
+              identifierOrCriteria: '0',
+              startAmount: amount,
+              endAmount: amount
+            }
+          ],
+          consideration: [
+            {
+              itemType: 2, // ERC721
+              token: process.env.NEXT_PUBLIC_OWNERSHIP_TOKEN_ADDRESS || '0x424bDf2E8a6F52Bd2c1C81D9437b0DC0309DF90f',
+              identifierOrCriteria: tokenId,
+              startAmount: '1',
+              endAmount: '1',
+              recipient: token.owner // Domain owner
+            }
+          ],
+          totalOriginalConsiderationItems: 1,
+          conduitKey: '0x0000000000000000000000000000000000000000000000000000000000000000',
+          counter: '0'
+        }
+      };
+      
+      // Create offer using Doma's Orderbook API
+      const response = await domaApi.createOffer(offerData);
+      return response;
     } catch (error: any) {
-      throw new Error(`Failed to create offer: ${error.message}`)
+      throw new Error(`Failed to create offer: ${error.message}`);
     }
   }
   
@@ -206,6 +242,38 @@ export class DomaService {
       return offers
     } catch (error: any) {
       throw new Error(`Failed to fetch paginated offers: ${error.message}`)
+    }
+  }
+  
+  // New method to check if an offer is still active
+  async isOfferActive(offerId: string, tokenId: string, useCache: boolean = false): Promise<boolean> {
+    try {
+      // Check if offer exists in active offers
+      const { items: activeOffers } = await domaApi.getOffers(tokenId, 'ACTIVE', useCache)
+      const isActive = activeOffers.some((offer: any) => 
+        offer.externalId === offerId || offer.id === offerId
+      )
+      
+      return isActive
+    } catch (error: any) {
+      console.error('Failed to check offer status:', error)
+      return false
+    }
+  }
+  
+  // New method to check if an offer is expired
+  async isOfferExpired(offerId: string, tokenId: string, useCache: boolean = false): Promise<boolean> {
+    try {
+      // Check if offer exists in expired offers
+      const { items: expiredOffers } = await domaApi.getOffers(tokenId, 'EXPIRED', useCache)
+      const isExpired = expiredOffers.some((offer: any) => 
+        offer.externalId === offerId || offer.id === offerId
+      )
+      
+      return isExpired
+    } catch (error: any) {
+      console.error('Failed to check offer expiration:', error)
+      return false
     }
   }
 }

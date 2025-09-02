@@ -37,15 +37,15 @@ export function useDoma() {
     }
   }
 
-  const createOffer = async (tokenId: string, amount: string) => {
+  const createOffer = async (tokenId: string, amount: string, currency: string = 'ETH') => {
     if (!address) {
       throw new Error('Wallet not connected')
     }
 
     try {
-      // In API-first approach, we would use Doma's Orderbook API
-      // For now, this is a placeholder that would need actual implementation
-      throw new Error('Offer creation via API not yet implemented')
+      // Create offer using Doma's Orderbook API
+      const response = await domaService.createOffer(tokenId, amount, currency)
+      return response
     } catch (error) {
       console.error('Error creating offer:', error)
       throw error
@@ -98,12 +98,32 @@ export function useDoma() {
     }
   }
 
-  const getPaginatedOffers = async (filters: any = {}, useCache: boolean = false) => {
+  // New method to get paginated offers
+  const getPaginatedOffers = async (filters: any = {}, useCache: boolean = false) {
     try {
       return await domaService.getPaginatedOffers(filters, useCache)
     } catch (error) {
       console.error('Error fetching paginated offers:', error)
       return { items: [], totalCount: 0 }
+    }
+  }
+  
+  // New methods to check offer status
+  const isOfferActive = async (offerId: string, tokenId: string, useCache: boolean = false) => {
+    try {
+      return await domaService.isOfferActive(offerId, tokenId, useCache)
+    } catch (error) {
+      console.error('Error checking offer status:', error)
+      return false
+    }
+  }
+  
+  const isOfferExpired = async (offerId: string, tokenId: string, useCache: boolean = false) => {
+    try {
+      return await domaService.isOfferExpired(offerId, tokenId, useCache)
+    } catch (error) {
+      console.error('Error checking offer expiration:', error)
+      return false
     }
   }
 
@@ -118,6 +138,8 @@ export function useDoma() {
     getDomainStatistics,
     getPaginatedListings,
     getPaginatedOffers,
+    isOfferActive,
+    isOfferExpired,
     isConnected: !!address
   }
 }

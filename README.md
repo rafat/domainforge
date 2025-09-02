@@ -15,6 +15,20 @@ DomainForge now features enhanced integration with Doma Protocol including:
 - Real-time event streaming via Poll API
 - Orderbook API integration for marketplace operations
 
+## Enhanced XMTP Chat Features
+
+DomainForge now includes enhanced XMTP chat functionality:
+- Offer integration with Doma's Orderbook API
+- Real-time offer status tracking using Poll API
+- Real-time notifications for offer updates
+- System messages for offer events
+- Notification badges in chat widget
+- Persistent conversations with database storage
+- Message history across sessions
+- Unread message tracking
+- Message deduplication and synchronization
+- Improved reliability and network resilience
+
 ## Getting Started
 
 First, install dependencies:

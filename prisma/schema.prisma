@@ -47,6 +47,7 @@ model Domain {
   offers       Offer[]
   transactions Transaction[]
   dnsRecords   DnsRecord[]
+  chatConversations ChatConversation[]
   
   @@map("domains")
 }
@@ -117,6 +118,39 @@ model Analytics {
   @@map("analytics")
 }
 
+model ChatConversation {
+  id          String   @id @default(cuid())
+  domainId    String
+  domain      Domain   @relation(fields: [domainId], references: [id])
+  buyerAddress String
+  sellerAddress String
+  xmtpConversationId String @unique
+  lastMessageAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  messages    ChatMessage[]
+  
+  @@map("chat_conversations")
+}
+
+model ChatMessage {
+  id          String   @id @default(cuid())
+  conversationId String
+  conversation ChatConversation @relation(fields: [conversationId], references: [id])
+  senderAddress String
+  content     String
+  messageType String @default("text") // text, offer, system
+  xmtpMessageId String? @unique
+  sentAt      DateTime @default(now())
+  deliveredAt DateTime?
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("chat_messages")
+}
+
 enum TransactionStatus {
   PENDING
   CONFIRMED
@@ -128,4 +162,10 @@ enum OfferStatus {
   ACCEPTED
   REJECTED
   EXPIRED
+}
+
+enum ChatMessageType {
+  TEXT
+  OFFER
+  SYSTEM
 }

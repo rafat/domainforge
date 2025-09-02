@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Client, Conversation, DecodedMessage } from '@xmtp/xmtp-js'
 import { useAccount, useWalletClient } from 'wagmi'
 import { ethers } from 'ethers'
+import { chatPersistenceService } from '@/lib/chatPersistenceService'
 
 export function useXMTP() {
   const { address } = useAccount()
@@ -45,13 +46,24 @@ export function useXMTP() {
     }
   }, [address, walletClient, initializeClient])
 
-  const createConversation = async (peerAddress: string) => {
-    if (!client) {
+  const createConversation = async (peerAddress: string, domainId?: string) => {
+    if (!client || !address) {
       throw new Error('XMTP client not initialized')
     }
     
     try {
       const conversation = await client.conversations.newConversation(peerAddress)
+      
+      // If we have domainId, create persistent conversation record
+      if (domainId) {
+        await chatPersistenceService.getOrCreateConversation(
+          domainId,
+          address.toLowerCase(),
+          peerAddress.toLowerCase(),
+          conversation.topic
+        )
+      }
+      
       setConversations(prev => [...prev, conversation])
       return conversation
     } catch (error) {
@@ -71,12 +83,25 @@ export function useXMTP() {
     }
   }
 
-  const sendMessage = async (conversation: Conversation, content: string) => {
-    if (!conversation || !content.trim()) return
+  const sendMessage = async (conversation: Conversation, content: string, domainId?: string) => {
+    if (!conversation || !content.trim() || !address) return
     
     try {
       setIsSending(true)
       const sentMessage = await conversation.send(content.trim())
+      
+      // Save message to persistent storage if we have domainId
+      if (domainId) {
+        const convRecord = await chatPersistenceService.getOrCreateConversation(
+          domainId,
+          address.toLowerCase(),
+          conversation.peerAddress.toLowerCase(),
+          conversation.topic
+        )
+        
+        await chatPersistenceService.saveMessage(convRecord.id, sentMessage)
+      }
+      
       return sentMessage
     } catch (error) {
       console.error('Failed to send message:', error)
@@ -86,12 +111,28 @@ export function useXMTP() {
     }
   }
 
-  const streamMessages = async (conversation: Conversation, onMessage: (message: DecodedMessage) => void) => {
+  const streamMessages = async (
+    conversation: Conversation, 
+    onMessage: (message: DecodedMessage) => void,
+    domainId?: string
+  ) => {
     if (!conversation || streaming) return
     
     try {
       setStreaming(true)
       for await (const message of await conversation.streamMessages()) {
+        // Save incoming message to persistent storage if we have domainId
+        if (domainId && message.senderAddress !== address) {
+          const convRecord = await chatPersistenceService.getOrCreateConversation(
+            domainId,
+            address ? address.toLowerCase() : '',
+            conversation.peerAddress.toLowerCase(),
+            conversation.topic
+          )
+          
+          await chatPersistenceService.saveMessage(convRecord.id, message)
+        }
+        
         onMessage(message)
       }
     } catch (error) {
@@ -114,6 +155,26 @@ export function useXMTP() {
     }
   }
 
+  // Load persistent messages for a conversation
+  const loadPersistentMessages = async (conversationId: string, limit: number = 50, offset: number = 0) => {
+    try {
+      const messages = await chatPersistenceService.getMessages(conversationId, limit, offset)
+      return messages
+    } catch (error) {
+      console.error('Failed to load persistent messages:', error)
+      return []
+    }
+  }
+
+  // Mark messages as read
+  const markMessagesAsRead = async (conversationId: string, beforeDate: Date) => {
+    try {
+      await chatPersistenceService.markMessagesAsRead(conversationId, beforeDate)
+    } catch (error) {
+      console.error('Failed to mark messages as read:', error)
+    }
+  }
+
   return {
     client,
     isLoading,
@@ -125,6 +186,8 @@ export function useXMTP() {
     sendMessage,
     streamMessages,
     listConversations,
+    loadPersistentMessages,
+    markMessagesAsRead,
     isConnected: !!client
   }
 }
