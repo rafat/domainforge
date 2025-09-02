@@ -5,9 +5,9 @@ import { domaApi } from './domaApi'
 import { DomaOffer, OwnershipHistory } from '@/types/doma'
 
 export class DomaService {
-  async getDomainInfo(tokenId: string) {
+  async getDomainInfo(tokenId: string, useCache: boolean = false) {
     try {
-      const token = await domaApi.getToken(tokenId)
+      const token = await domaApi.getToken(tokenId, useCache)
       
       if (!token) {
         throw new Error('Domain not found')
@@ -45,27 +45,27 @@ export class DomaService {
     }
   }
   
-  async getOrderBookOffers(tokenId: string): Promise<DomaOffer[]> {
+  async getOrderBookOffers(tokenId: string, useCache: boolean = false): Promise<DomaOffer[]> {
     try {
-      const offers = await domaApi.getOffers(tokenId)
-      return offers
+      const offersResponse = await domaApi.getOffers(tokenId, 'ACTIVE', useCache)
+      return offersResponse.items || []
     } catch (error: any) {
       throw new Error(`Failed to fetch offers: ${error.message}`)
     }
   }
   
-  async getOrderBookListings(tokenId: string) {
+  async getOrderBookListings(tokenId: string, useCache: boolean = false) {
     try {
-      const listings = await domaApi.getListings(tokenId)
-      return listings
+      const listingsResponse = await domaApi.getListings(tokenId, 'ACTIVE', useCache)
+      return listingsResponse.items || []
     } catch (error: any) {
       throw new Error(`Failed to fetch listings: ${error.message}`)
     }
   }
   
-  async getOwnershipHistory(tokenId: string): Promise<OwnershipHistory[]> {
+  async getOwnershipHistory(tokenId: string, useCache: boolean = false): Promise<OwnershipHistory[]> {
     try {
-      const token = await domaApi.getToken(tokenId)
+      const token = await domaApi.getToken(tokenId, useCache)
       
       if (!token) {
         throw new Error('Domain not found')
@@ -121,45 +121,91 @@ export class DomaService {
   }
   
   // New method to get domain metadata with additional Doma-specific info
-  async getDomainMetadata(tokenId: string) {
+  async getDomainMetadata(tokenId: string, useCache: boolean = false) {
     try {
       // This now uses the Subgraph API approach
-      return await this.getDomainInfo(tokenId)
+      return await this.getDomainInfo(tokenId, useCache)
     } catch (error: any) {
       throw new Error(`Failed to fetch domain metadata: ${error.message}`)
     }
   }
   
   // New method to get domain listings
-  async getDomainListings(tokenId: string) {
+  async getDomainListings(tokenId: string, useCache: boolean = false) {
     try {
-      const token = await domaApi.getToken(tokenId)
+      const token = await domaApi.getToken(tokenId, useCache)
       return token?.listings || []
     } catch (error: any) {
       throw new Error(`Failed to fetch listings: ${error.message}`)
     }
   }
   
-  // New method to get domain activities
-  async getDomainActivities(tokenId: string, type?: string, limit?: number) {
+  // New method to get domain activities with pagination support
+  async getDomainActivities(tokenId: string, type?: string, limit?: number, useCache: boolean = false) {
     try {
-      const activities = await domaApi.getDomainActivities(tokenId, type, limit)
-      return activities
+      const activitiesResponse = await domaApi.getDomainActivities(tokenId, type, limit, useCache)
+      return activitiesResponse.items || []
     } catch (error: any) {
       throw new Error(`Failed to fetch domain activities: ${error.message}`)
     }
   }
   
-  // New method to get domains by owner
-  async getDomainsByOwner(ownerAddress: string, limit: number = 100) {
+  // New method to get domains by owner with pagination support
+  async getDomainsByOwner(ownerAddress: string, limit: number = 100, skip: number = 0, useCache: boolean = false) {
     try {
       const names = await domaApi.getNames({
         ownedBy: [ownerAddress],
-        take: limit
-      })
+        take: limit,
+        skip: skip
+      }, useCache)
       return names.items || []
     } catch (error: any) {
       throw new Error(`Failed to fetch domains by owner: ${error.message}`)
+    }
+  }
+  
+  // New method to get domain statistics
+  async getDomainStatistics(tokenId: string, useCache: boolean = false) {
+    try {
+      return await domaApi.getDomainStatistics(tokenId, useCache)
+    } catch (error: any) {
+      throw new Error(`Failed to fetch domain statistics: ${error.message}`)
+    }
+  }
+  
+  // New method to get paginated listings
+  async getPaginatedListings(filters: {
+    skip?: number;
+    take?: number;
+    tlds?: string[];
+    createdSince?: string;
+    sld?: string;
+    networkIds?: string[];
+    registrarIanaIds?: number[];
+    sortOrder?: 'ASC' | 'DESC';
+  } = {}, useCache: boolean = false) {
+    try {
+      const listings = await domaApi.getPaginatedListings(filters, useCache)
+      return listings
+    } catch (error: any) {
+      throw new Error(`Failed to fetch paginated listings: ${error.message}`)
+    }
+  }
+  
+  // New method to get paginated offers
+  async getPaginatedOffers(filters: {
+    tokenId?: string;
+    offeredBy?: string[];
+    skip?: number;
+    take?: number;
+    status?: 'ACTIVE' | 'EXPIRED' | 'All';
+    sortOrder?: 'ASC' | 'DESC';
+  } = {}, useCache: boolean = false) {
+    try {
+      const offers = await domaApi.getPaginatedOffers(filters, useCache)
+      return offers
+    } catch (error: any) {
+      throw new Error(`Failed to fetch paginated offers: ${error.message}`)
     }
   }
 }

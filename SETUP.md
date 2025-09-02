@@ -2,6 +2,15 @@
 
 A comprehensive guide to set up the DomainForge no-code platform for creating domain sales pages with on-chain negotiation capabilities.
 
+## Enhanced Doma Protocol Integration
+
+DomainForge features enhanced integration with Doma Protocol including:
+- Comprehensive Subgraph API queries with rich domain data
+- Pagination support for large datasets
+- In-memory caching for improved performance
+- Real-time event streaming via Poll API
+- Orderbook API integration for marketplace operations
+
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)

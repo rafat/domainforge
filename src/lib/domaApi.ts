@@ -6,6 +6,7 @@ import {
   ResetPollingResponse,
   DomaEventType
 } from '@/types/domaEvents'
+import { domaCache } from './cache'
 
 // Get API endpoints from environment variables
 const DOMA_SUBGRAPH_URL = process.env.NEXT_PUBLIC_DOMA_SUBGRAPH_URL || 'https://api-testnet.doma.xyz/graphql'
@@ -23,7 +24,19 @@ export class DomaApiClient {
     this.apiKey = DOMA_API_KEY
   }
   
-  private async graphqlRequest(query: string, variables: any = {}) {
+  private async graphqlRequest(query: string, variables: any = {}, useCache: boolean = false, cacheKey?: string) {
+    // Generate cache key if not provided
+    const key = cacheKey || `graphql_${JSON.stringify({ query, variables })}`;
+    
+    // Check cache first if enabled
+    if (useCache) {
+      const cached = domaCache.get(key);
+      if (cached) {
+        console.log(`Cache hit for key: ${key}`);
+        return cached;
+      }
+    }
+    
     const response = await fetch(this.subgraphUrl, {
       method: 'POST',
       headers: {
@@ -44,6 +57,11 @@ export class DomaApiClient {
     
     if (result.errors) {
       throw new Error(`GraphQL error: ${JSON.stringify(result.errors)}`)
+    }
+    
+    // Cache the result if caching is enabled
+    if (useCache) {
+      domaCache.set(key, result.data);
     }
     
     return result.data
@@ -73,7 +91,7 @@ export class DomaApiClient {
   }
   
   // Domain/Token queries
-  async getToken(tokenId: string) {
+  async getToken(tokenId: string, useCache: boolean = false) {
     const query = `
       query GetToken($tokenId: String!) {
         token(tokenId: $tokenId) {
@@ -119,6 +137,8 @@ export class DomaApiClient {
               tokenId
               createdAt
               owner: to
+              txHash
+              finalized
             }
             ... on TokenTransferredActivity {
               type
@@ -126,6 +146,8 @@ export class DomaApiClient {
               createdAt
               transferredFrom
               transferredTo
+              txHash
+              finalized
             }
             ... on TokenListedActivity {
               type
@@ -142,6 +164,8 @@ export class DomaApiClient {
                 currencySymbol
               }
               orderbook
+              txHash
+              finalized
             }
             ... on TokenOfferReceivedActivity {
               type
@@ -157,17 +181,57 @@ export class DomaApiClient {
                 currencySymbol
               }
               orderbook
+              txHash
+              finalized
+            }
+            ... on TokenListingCancelledActivity {
+              type
+              tokenId
+              createdAt
+              orderId
+              reason
+              orderbook
+              txHash
+              finalized
+            }
+            ... on TokenOfferCancelledActivity {
+              type
+              tokenId
+              createdAt
+              orderId
+              reason
+              orderbook
+              txHash
+              finalized
+            }
+            ... on TokenPurchasedActivity {
+              type
+              tokenId
+              createdAt
+              orderId
+              purchasedAt
+              seller
+              buyer
+              payment {
+                price
+                tokenAddress
+                currencySymbol
+              }
+              orderbook
+              txHash
+              finalized
             }
           }
         }
       }
     `
     
-    const data = await this.graphqlRequest(query, { tokenId })
+    const cacheKey = `token_${tokenId}`;
+    const data = await this.graphqlRequest(query, { tokenId }, useCache, cacheKey)
     return data.token
   }
   
-  async getOffers(tokenId: string, status: string = 'ACTIVE') {
+  async getOffers(tokenId: string, status: string = 'ACTIVE', useCache: boolean = false) {
     const query = `
       query GetOffers($tokenId: String!, $status: OfferStatus) {
         offers(tokenId: $tokenId, status: $status, sortOrder: DESC) {
@@ -185,15 +249,22 @@ export class DomaApiClient {
             expiresAt
             createdAt
           }
+          totalCount
+          pageSize
+          currentPage
+          totalPages
+          hasPreviousPage
+          hasNextPage
         }
       }
     `
     
-    const data = await this.graphqlRequest(query, { tokenId, status })
-    return data.offers?.items || []
+    const cacheKey = `offers_${tokenId}_${status}`;
+    const data = await this.graphqlRequest(query, { tokenId, status }, useCache, cacheKey)
+    return data.offers || { items: [], totalCount: 0 }
   }
   
-  async getListings(tokenId: string, status: string = 'ACTIVE') {
+  async getListings(tokenId: string, status: string = 'ACTIVE', useCache: boolean = false) {
     const query = `
       query GetListings($tokenId: String!, $status: OfferStatus) {
         listings(tokenId: $tokenId, status: $status, sortOrder: DESC) {
@@ -212,35 +283,201 @@ export class DomaApiClient {
             createdAt
             updatedAt
           }
+          totalCount
+          pageSize
+          currentPage
+          totalPages
+          hasPreviousPage
+          hasNextPage
         }
       }
     `
     
-    const data = await this.graphqlRequest(query, { tokenId, status })
-    return data.listings?.items || []
+    const cacheKey = `listings_${tokenId}_${status}`;
+    const data = await this.graphqlRequest(query, { tokenId, status }, useCache, cacheKey)
+    return data.listings || { items: [], totalCount: 0 }
   }
   
-  async getNames(filters: any = {}) {
+  async getNames(filters: any = {}, useCache: boolean = false) {
     const query = `
-      query GetNames($ownedBy: [AddressCAIP10!], $name: String, $tlds: [String!], $skip: Int, $take: Int) {
-        names(ownedBy: $ownedBy, name: $name, tlds: $tlds, skip: $skip, take: $take) {
+      query GetNames($ownedBy: [AddressCAIP10!], $name: String, $tlds: [String!], $skip: Int, $take: Int, $claimStatus: NamesQueryClaimStatus, $networkIds: [String!], $registrarIanaIds: [Int!], $sortOrder: SortOrderType) {
+        names(ownedBy: $ownedBy, name: $name, tlds: $tlds, skip: $skip, take: $take, claimStatus: $claimStatus, networkIds: $networkIds, registrarIanaIds: $registrarIanaIds, sortOrder: $sortOrder) {
           items {
             name
             expiresAt
             tokenizedAt
+            eoi
             registrar {
               ianaId
               name
+              websiteUrl
+              supportEmail
             }
+            nameservers {
+              ldhName
+            }
+            dsKeys {
+              keyTag
+              algorithm
+              digest
+              digestType
+            }
+            transferLock
+            claimedBy
             tokens {
               tokenId
+              networkId
               ownerAddress
-              chain {
-                networkId
-                name
-              }
-              expiresAt
               type
+              startsAt
+              expiresAt
+              explorerUrl
+              tokenAddress
+              createdAt
+              chain {
+                name
+                networkId
+              }
+              listings {
+                id
+                externalId
+                price
+                offererAddress
+                orderbook
+                currency {
+                  name
+                  symbol
+                  decimals
+                }
+                expiresAt
+                createdAt
+                updatedAt
+              }
+              activities {
+                ... on TokenMintedActivity {
+                  type
+                  tokenId
+                  createdAt
+                  owner: to
+                  txHash
+                  finalized
+                }
+                ... on TokenTransferredActivity {
+                  type
+                  tokenId
+                  createdAt
+                  transferredFrom
+                  transferredTo
+                  txHash
+                  finalized
+                }
+                ... on TokenListedActivity {
+                  type
+                  tokenId
+                  createdAt
+                  orderId
+                  startsAt
+                  expiresAt
+                  seller
+                  buyer
+                  payment {
+                    price
+                    tokenAddress
+                    currencySymbol
+                  }
+                  orderbook
+                  txHash
+                  finalized
+                }
+                ... on TokenOfferReceivedActivity {
+                  type
+                  tokenId
+                  createdAt
+                  orderId
+                  expiresAt
+                  buyer
+                  seller
+                  payment {
+                    price
+                    tokenAddress
+                    currencySymbol
+                  }
+                  orderbook
+                  txHash
+                  finalized
+                }
+                ... on TokenListingCancelledActivity {
+                  type
+                  tokenId
+                  createdAt
+                  orderId
+                  reason
+                  orderbook
+                  txHash
+                  finalized
+                }
+                ... on TokenOfferCancelledActivity {
+                  type
+                  tokenId
+                  createdAt
+                  orderId
+                  reason
+                  orderbook
+                  txHash
+                  finalized
+                }
+                ... on TokenPurchasedActivity {
+                  type
+                  tokenId
+                  createdAt
+                  orderId
+                  purchasedAt
+                  seller
+                  buyer
+                  payment {
+                    price
+                    tokenAddress
+                    currencySymbol
+                  }
+                  orderbook
+                  txHash
+                  finalized
+                }
+              }
+            }
+            activities {
+              ... on NameClaimedActivity {
+                type
+                txHash
+                sld
+                tld
+                createdAt
+                claimedBy
+              }
+              ... on NameRenewedActivity {
+                type
+                txHash
+                sld
+                tld
+                createdAt
+                expiresAt
+              }
+              ... on NameDetokenizedActivity {
+                type
+                txHash
+                sld
+                tld
+                createdAt
+                networkId
+              }
+              ... on NameTokenizedActivity {
+                type
+                txHash
+                sld
+                tld
+                createdAt
+                networkId
+              }
             }
           }
           totalCount
@@ -253,7 +490,8 @@ export class DomaApiClient {
       }
     `
     
-    const data = await this.graphqlRequest(query, filters)
+    const cacheKey = `names_${JSON.stringify(filters)}`;
+    const data = await this.graphqlRequest(query, filters, useCache, cacheKey)
     return data.names || { items: [], totalCount: 0 }
   }
   
@@ -457,36 +695,444 @@ export class DomaApiClient {
   }
   
   // Additional helper methods
-  async getDomainByName(name: string) {
+  async getDomainByName(name: string, useCache: boolean = false) {
     const query = `
       query GetDomainByName($name: String!) {
         name(name: $name) {
           name
           expiresAt
           tokenizedAt
+          eoi
           registrar {
             ianaId
             name
+            websiteUrl
+            supportEmail
           }
+          nameservers {
+            ldhName
+          }
+          dsKeys {
+            keyTag
+            algorithm
+            digest
+            digestType
+          }
+          transferLock
+          claimedBy
           tokens {
             tokenId
+            networkId
             ownerAddress
-            chain {
-              networkId
-              name
-            }
-            expiresAt
             type
+            startsAt
+            expiresAt
+            explorerUrl
+            tokenAddress
+            createdAt
+            chain {
+              name
+              networkId
+            }
+            listings {
+              id
+              externalId
+              price
+              offererAddress
+              orderbook
+              currency {
+                name
+                symbol
+                decimals
+              }
+              expiresAt
+              createdAt
+              updatedAt
+            }
+            activities {
+              ... on TokenMintedActivity {
+                type
+                tokenId
+                createdAt
+                owner: to
+                txHash
+                finalized
+              }
+              ... on TokenTransferredActivity {
+                type
+                tokenId
+                createdAt
+                transferredFrom
+                transferredTo
+                txHash
+                finalized
+              }
+              ... on TokenListedActivity {
+                type
+                tokenId
+                createdAt
+                orderId
+                startsAt
+                expiresAt
+                seller
+                buyer
+                payment {
+                  price
+                  tokenAddress
+                  currencySymbol
+                }
+                orderbook
+                txHash
+                finalized
+              }
+              ... on TokenOfferReceivedActivity {
+                type
+                tokenId
+                createdAt
+                orderId
+                expiresAt
+                buyer
+                seller
+                payment {
+                  price
+                  tokenAddress
+                  currencySymbol
+                }
+                orderbook
+                txHash
+                finalized
+              }
+              ... on TokenListingCancelledActivity {
+                type
+                tokenId
+                createdAt
+                orderId
+                reason
+                orderbook
+                txHash
+                finalized
+              }
+              ... on TokenOfferCancelledActivity {
+                type
+                tokenId
+                createdAt
+                orderId
+                reason
+                orderbook
+                txHash
+                finalized
+              }
+              ... on TokenPurchasedActivity {
+                type
+                tokenId
+                createdAt
+                orderId
+                purchasedAt
+                seller
+                buyer
+                payment {
+                  price
+                  tokenAddress
+                  currencySymbol
+                }
+                orderbook
+                txHash
+                finalized
+              }
+            }
+          }
+          activities {
+            ... on NameClaimedActivity {
+              type
+              txHash
+              sld
+              tld
+              createdAt
+              claimedBy
+            }
+            ... on NameRenewedActivity {
+              type
+              txHash
+              sld
+              tld
+              createdAt
+              expiresAt
+            }
+            ... on NameDetokenizedActivity {
+              type
+              txHash
+              sld
+              tld
+              createdAt
+              networkId
+            }
+            ... on NameTokenizedActivity {
+              type
+              txHash
+              sld
+              tld
+              createdAt
+              networkId
+            }
           }
         }
       }
     `
     
-    const data = await this.graphqlRequest(query, { name })
+    const cacheKey = `domain_${name}`;
+    const data = await this.graphqlRequest(query, { name }, useCache, cacheKey)
     return data.name
   }
+
+  // New comprehensive method to get domain statistics
+  async getDomainStatistics(tokenId: string, useCache: boolean = false) {
+    const query = `
+      query GetNameStatistics($tokenId: String!) {
+        nameStatistics(tokenId: $tokenId) {
+          name
+          highestOffer {
+            id
+            externalId
+            price
+            offererAddress
+            orderbook
+            currency {
+              name
+              symbol
+              decimals
+            }
+            expiresAt
+            createdAt
+          }
+          activeOffers
+          offersLast3Days
+        }
+      }
+    `
+    
+    const cacheKey = `stats_${tokenId}`;
+    const data = await this.graphqlRequest(query, { tokenId }, useCache, cacheKey)
+    return data.nameStatistics
+  }
+
+  // New method to get paginated listings with more filters
+  async getPaginatedListings(filters: {
+    skip?: number;
+    take?: number;
+    tlds?: string[];
+    createdSince?: string;
+    sld?: string;
+    networkIds?: string[];
+    registrarIanaIds?: number[];
+    sortOrder?: 'ASC' | 'DESC';
+  } = {}, useCache: boolean = false) {
+    const query = `
+      query GetPaginatedListings(
+        $skip: Float,
+        $take: Float,
+        $tlds: [String!],
+        $createdSince: DateTime,
+        $sld: String,
+        $networkIds: [String!],
+        $registrarIanaIds: [Int!],
+        $sortOrder: SortOrderType
+      ) {
+        listings(
+          skip: $skip,
+          take: $take,
+          tlds: $tlds,
+          createdSince: $createdSince,
+          sld: $sld,
+          networkIds: $networkIds,
+          registrarIanaIds: $registrarIanaIds,
+          sortOrder: $sortOrder
+        ) {
+          items {
+            id
+            externalId
+            price
+            offererAddress
+            orderbook
+            currency {
+              name
+              symbol
+              decimals
+            }
+            expiresAt
+            createdAt
+            updatedAt
+            name
+            nameExpiresAt
+            registrar {
+              ianaId
+              name
+              websiteUrl
+              supportEmail
+            }
+            tokenId
+            tokenAddress
+            chain {
+              name
+              networkId
+            }
+          }
+          totalCount
+          pageSize
+          currentPage
+          totalPages
+          hasPreviousPage
+          hasNextPage
+        }
+      }
+    `
+    
+    const cacheKey = `listings_${JSON.stringify(filters)}`;
+    const data = await this.graphqlRequest(query, filters, useCache, cacheKey)
+    return data.listings || { items: [], totalCount: 0 }
+  }
+
+  // New method to get paginated offers with more filters
+  async getPaginatedOffers(filters: {
+    tokenId?: string;
+    offeredBy?: string[];
+    skip?: number;
+    take?: number;
+    status?: 'ACTIVE' | 'EXPIRED' | 'All';
+    sortOrder?: 'ASC' | 'DESC';
+  } = {}, useCache: boolean = false) {
+    const query = `
+      query GetPaginatedOffers(
+        $tokenId: String,
+        $offeredBy: [AddressCAIP10!],
+        $skip: Float,
+        $take: Float,
+        $status: OfferStatus,
+        $sortOrder: SortOrderType
+      ) {
+        offers(
+          tokenId: $tokenId,
+          offeredBy: $offeredBy,
+          skip: $skip,
+          take: $take,
+          status: $status,
+          sortOrder: $sortOrder
+        ) {
+          items {
+            id
+            externalId
+            price
+            offererAddress
+            orderbook
+            currency {
+              name
+              symbol
+              decimals
+            }
+            expiresAt
+            createdAt
+            name
+            nameExpiresAt
+            registrar {
+              ianaId
+              name
+              websiteUrl
+              supportEmail
+            }
+            tokenId
+            tokenAddress
+            chain {
+              name
+              networkId
+            }
+          }
+          totalCount
+          pageSize
+          currentPage
+          totalPages
+          hasPreviousPage
+          hasNextPage
+        }
+      }
+    `
+    
+    const cacheKey = `offers_${JSON.stringify(filters)}`;
+    const data = await this.graphqlRequest(query, filters, useCache, cacheKey)
+    return data.offers || { items: [], totalCount: 0 }
+  }
+
+  // New method to get name activities with pagination
+  async getNameActivities(name: string, filters: {
+    type?: string;
+    skip?: number;
+    take?: number;
+    sortOrder?: 'ASC' | 'DESC';
+  } = {}, useCache: boolean = false) {
+    const query = `
+      query GetNameActivities(
+        $name: String!,
+        $type: NameActivityType,
+        $skip: Float,
+        $take: Float,
+        $sortOrder: SortOrderType
+      ) {
+        nameActivities(
+          name: $name,
+          type: $type,
+          skip: $skip,
+          take: $take,
+          sortOrder: $sortOrder
+        ) {
+          items {
+            ... on NameClaimedActivity {
+              type
+              txHash
+              sld
+              tld
+              createdAt
+              claimedBy
+            }
+            ... on NameRenewedActivity {
+              type
+              txHash
+              sld
+              tld
+              createdAt
+              expiresAt
+            }
+            ... on NameDetokenizedActivity {
+              type
+              txHash
+              sld
+              tld
+              createdAt
+              networkId
+            }
+            ... on NameTokenizedActivity {
+              type
+              txHash
+              sld
+              tld
+              createdAt
+              networkId
+            }
+          }
+          totalCount
+          pageSize
+          currentPage
+          totalPages
+          hasPreviousPage
+          hasNextPage
+        }
+      }
+    `
+    
+    const variables = { name, ...filters };
+    const cacheKey = `name_activities_${name}_${JSON.stringify(filters)}`;
+    const data = await this.graphqlRequest(query, variables, useCache, cacheKey)
+    return data.nameActivities || { items: [], totalCount: 0 }
+  }
   
-  async getDomainActivities(tokenId: string, type?: string, limit: number = 50) {
+  async getDomainActivities(tokenId: string, type?: string, limit: number = 50, useCache: boolean = false) {
     const query = `
       query GetTokenActivities($tokenId: String!, $type: TokenActivityType, $take: Float) {
         tokenActivities(tokenId: $tokenId, type: $type, take: $take, sortOrder: DESC) {
@@ -581,12 +1227,19 @@ export class DomaApiClient {
               finalized
             }
           }
+          totalCount
+          pageSize
+          currentPage
+          totalPages
+          hasPreviousPage
+          hasNextPage
         }
       }
     `
     
-    const data = await this.graphqlRequest(query, { tokenId, type, take: limit })
-    return data.tokenActivities?.items || []
+    const cacheKey = `activities_${tokenId}_${type || 'all'}_${limit}`;
+    const data = await this.graphqlRequest(query, { tokenId, type, take: limit }, useCache, cacheKey)
+    return data.tokenActivities || { items: [], totalCount: 0 }
   }
 }
 
