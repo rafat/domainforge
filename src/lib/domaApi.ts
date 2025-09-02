@@ -1,10 +1,16 @@
 // src/lib/domaApi.ts
 // Dedicated client for Doma Protocol APIs
+import { 
+  PollEventsResponse, 
+  AcknowledgeEventResponse, 
+  ResetPollingResponse,
+  DomaEventType
+} from '@/types/domaEvents'
 
 // Get API endpoints from environment variables
 const DOMA_SUBGRAPH_URL = process.env.NEXT_PUBLIC_DOMA_SUBGRAPH_URL || 'https://api-testnet.doma.xyz/graphql'
 const DOMA_API_URL = process.env.NEXT_PUBLIC_DOMA_API_URL || 'https://api-testnet.doma.xyz'
-const DOMA_API_KEY = process.env.DOMA_API_KEY || 'v1.93ebb5bd6e71f5a67798bf32ef482bd2910964f1a2d6857cd6d59bb68525680b'
+const DOMA_API_KEY = process.env.DOMA_API_KEY || 'v1.xxxx';
 
 export class DomaApiClient {
   private subgraphUrl: string
@@ -337,7 +343,7 @@ export class DomaApiClient {
   }
   
   // Poll API methods
-  async pollEvents(eventTypes?: string[], limit?: number, finalizedOnly: boolean = true) {
+  async pollEvents(eventTypes?: string[], limit?: number, finalizedOnly: boolean = true, cursor?: string) {
     try {
       const params = new URLSearchParams()
       
@@ -347,6 +353,10 @@ export class DomaApiClient {
       
       if (limit) {
         params.append('limit', limit.toString())
+      }
+      
+      if (cursor) {
+        params.append('cursor', cursor)
       }
       
       params.append('finalizedOnly', finalizedOnly.toString())
@@ -359,20 +369,89 @@ export class DomaApiClient {
   
   async acknowledgeEvent(lastEventId: number) {
     try {
-      return await this.restRequest(`/v1/poll/ack/${lastEventId}`, {
+      const response = await this.restRequest(`/v1/poll/ack/${lastEventId}`, {
         method: 'POST'
       })
+      // Handle empty responses from the API
+      return response || { success: true, message: 'Acknowledged' }
     } catch (error: any) {
+      // Handle case where API returns empty response
+      if (error.message.includes('Unexpected end of JSON input')) {
+        console.warn('Received empty response from acknowledge endpoint, treating as success')
+        return { success: true, message: 'Acknowledged' }
+      }
       throw new Error(`Failed to acknowledge event: ${error.message}`)
     }
   }
   
   async resetPolling(eventId: number) {
     try {
-      return await this.restRequest(`/v1/poll/reset/${eventId}`, {
+      const response = await this.restRequest(`/v1/poll/reset/${eventId}`, {
         method: 'POST'
       })
+      // Handle empty responses from the API
+      return response || { success: true, message: 'Reset successful' }
     } catch (error: any) {
+      throw new Error(`Failed to reset polling: ${error.message}`)
+    }
+  }
+  
+  // Enhanced Poll API methods with better typing and error handling
+  async pollEventsWithTypes(eventTypes?: DomaEventType[], limit?: number, finalizedOnly: boolean = true, cursor?: string) {
+    try {
+      const params = new URLSearchParams()
+      
+      if (eventTypes && eventTypes.length > 0) {
+        eventTypes.forEach(type => params.append('eventTypes', type))
+      }
+      
+      if (limit) {
+        params.append('limit', limit.toString())
+      }
+      
+      if (cursor) {
+        params.append('cursor', cursor)
+      }
+      
+      params.append('finalizedOnly', finalizedOnly.toString())
+      
+      const response = await this.restRequest(`/v1/poll?${params.toString()}`)
+      return response as PollEventsResponse
+    } catch (error: any) {
+      throw new Error(`Failed to poll events: ${error.message}`)
+    }
+  }
+  
+  async acknowledgeEventWithResponse(lastEventId: number): Promise<AcknowledgeEventResponse> {
+    try {
+      const response = await this.restRequest(`/v1/poll/ack/${lastEventId}`, {
+        method: 'POST'
+      })
+      // Handle empty responses from the API
+      return response as AcknowledgeEventResponse || { success: true, message: 'Acknowledged' }
+    } catch (error: any) {
+      // Handle case where API returns empty response
+      if (error.message.includes('Unexpected end of JSON input')) {
+        console.warn('Received empty response from acknowledge endpoint, treating as success')
+        return { success: true, message: 'Acknowledged' }
+      }
+      throw new Error(`Failed to acknowledge event: ${error.message}`)
+    }
+  }
+  
+  async resetPollingWithResponse(eventId: number): Promise<ResetPollingResponse> {
+    try {
+      const response = await this.restRequest(`/v1/poll/reset/${eventId}`, {
+        method: 'POST'
+      })
+      // Handle empty responses from the API
+      return response as ResetPollingResponse || { success: true, message: 'Reset successful' }
+    } catch (error: any) {
+      // Handle case where API returns empty response
+      if (error.message.includes('Unexpected end of JSON input')) {
+        console.warn('Received empty response from reset endpoint, treating as success')
+        return { success: true, message: 'Reset successful' }
+      }
       throw new Error(`Failed to reset polling: ${error.message}`)
     }
   }

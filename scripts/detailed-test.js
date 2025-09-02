@@ -12,10 +12,8 @@ async function detailedTest() {
     // Get the API key from .env file
     const envPath = path.join(__dirname, '..', '.env')
     const envContent = fs.readFileSync(envPath, 'utf8')
-    const apiKeyMatch = envContent.match(/DOMA_API_KEY=(.+)/)
-    const apiKey = apiKeyMatch ? apiKeyMatch[1] : 'v1.93ebb5bd6e71f5a67798bf32ef482bd2910964f1a2d6857cd6d59bb68525680b'
-    
-    console.log('API Key:', apiKey ? 'Found' : 'Not found')
+    const apiKey = process
+
     
     // Test direct GraphQL query
     console.log('\n🧪 Testing direct GraphQL query...')

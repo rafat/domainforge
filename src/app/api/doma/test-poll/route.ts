@@ -4,23 +4,24 @@ import { domaApi } from '@/lib/domaApi'
 
 export async function GET(request: NextRequest) {
   try {
-    // Test polling events
-    console.log('Testing pollEvents method...')
-    const events = await domaApi.pollEvents(['NAME_TOKENIZED', 'NAME_CLAIMED'], 5, true)
-    console.log('pollEvents successful')
+    // Test polling events with enhanced method
+    console.log('Testing pollEventsWithTypes method...')
+    const eventsResponse = await domaApi.pollEventsWithTypes(['NAME_TOKENIZED', 'NAME_CLAIMED'], 5, true)
+    console.log('pollEventsWithTypes successful')
     
     let ackResult = null
-    if (events.events && events.events.length > 0) {
-      // Test acknowledging the last event
-      console.log('Testing acknowledgeEvent method...')
-      const lastEventId = events.events[events.events.length - 1].id
-      ackResult = await domaApi.acknowledgeEvent(lastEventId)
-      console.log('acknowledgeEvent successful')
+    if (eventsResponse.events && eventsResponse.events.length > 0) {
+      // Test acknowledging the last event with enhanced method
+      console.log('Testing acknowledgeEventWithResponse method...')
+      const lastEventId = eventsResponse.events[eventsResponse.events.length - 1].id
+      ackResult = await domaApi.acknowledgeEventWithResponse(lastEventId)
+      console.log('acknowledgeEventWithResponse successful')
     }
     
     const result = {
       success: true,
-      eventsCount: events.events?.length || 0,
+      eventsCount: eventsResponse.events?.length || 0,
+      events: eventsResponse.events || [],
       acknowledged: ackResult !== null,
       timestamp: new Date().toISOString()
     }
