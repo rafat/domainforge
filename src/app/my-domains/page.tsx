@@ -4,10 +4,8 @@
 import { useState } from 'react'
 import BlockchainUserDomainsSection from '@/components/BlockchainUserDomainsSection'
 import DebugWalletSwitcher from '@/components/DebugWalletSwitcher'
-import { useWallet } from '@/hooks/useWallet'
 
 export default function MyDomainsPage() {
-  const { isConnected } = useWallet()
   const [debugAddress, setDebugAddress] = useState<string | undefined>()
 
   return (

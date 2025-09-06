@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
   const sortOrder = searchParams.get('sortOrder') || 'desc'
   const forSale = searchParams.get('forSale') === 'true'
   const owner = searchParams.get('owner') // Add owner filter
+  const name = searchParams.get('name') // Add name filter
   const minPrice = searchParams.get('minPrice') ? parseFloat(searchParams.get('minPrice')!) : undefined
   const maxPrice = searchParams.get('maxPrice') ? parseFloat(searchParams.get('maxPrice')!) : undefined
 
@@ -18,13 +19,18 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit
 
     // Build where condition
-    const where: any = {}
+    const where: Record<string, unknown> = {}
     
     if (search) {
       where.name = {
         contains: search,
         mode: 'insensitive'
       }
+    }
+
+    // Exact name match filter
+    if (name) {
+      where.name = name
     }
 
     if (forSale) {
@@ -46,7 +52,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build orderBy
-    const orderBy: any = {}
+    const orderBy: Record<string, unknown> = {}
     orderBy[sortBy] = sortOrder
 
     const [domains, total] = await Promise.all([
@@ -99,10 +105,23 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingDomain) {
-      return NextResponse.json(
-        { error: 'Domain already exists' },
-        { status: 400 }
-      )
+      // If it's the same owner, allow updating the existing domain
+      if (existingDomain.owner.toLowerCase() === owner.toLowerCase()) {
+        const updatedDomain = await prisma.domain.update({
+          where: { id: existingDomain.id },
+          data: {
+            ...existingDomain,
+            ...body,
+            updatedAt: new Date()
+          }
+        })
+        return NextResponse.json({ domain: updatedDomain }, { status: 200 })
+      } else {
+        return NextResponse.json(
+          { error: 'Domain already exists and is owned by another user' },
+          { status: 400 }
+        )
+      }
     }
 
     // Calculate expiry date

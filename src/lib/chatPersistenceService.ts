@@ -2,7 +2,6 @@
 // Service for handling persistent chat conversations and messages
 
 import { prisma } from './db'
-import { Conversation, DecodedMessage } from '@xmtp/xmtp-js'
 import { ChatMessage as PrismaChatMessage } from '@prisma/client'
 
 export class ChatPersistenceService {
@@ -22,13 +21,13 @@ export class ChatPersistenceService {
     domainId: string,
     buyerAddress: string,
     sellerAddress: string,
-    xmtpConversationId: string
+    conversationId: string
   ) {
     try {
       // Check if conversation already exists
       let conversation = await prisma.chatConversation.findUnique({
         where: {
-          xmtpConversationId: xmtpConversationId
+          xmtpConversationId: conversationId
         }
       })
 
@@ -39,7 +38,7 @@ export class ChatPersistenceService {
             domainId: domainId,
             buyerAddress: buyerAddress.toLowerCase(),
             sellerAddress: sellerAddress.toLowerCase(),
-            xmtpConversationId: xmtpConversationId
+            xmtpConversationId: conversationId
           }
         })
       }
@@ -54,30 +53,19 @@ export class ChatPersistenceService {
   // Save a message to the database
   async saveMessage(
     conversationId: string,
-    xmtpMessage: DecodedMessage,
+    senderAddress: string,
+    content: string,
     messageType: string = 'text'
   ): Promise<PrismaChatMessage | null> {
     try {
-      // Check if message already exists
-      const existingMessage = await prisma.chatMessage.findUnique({
-        where: {
-          xmtpMessageId: xmtpMessage.id
-        }
-      })
-
-      if (existingMessage) {
-        return existingMessage
-      }
-
       // Create new message record
       const message = await prisma.chatMessage.create({
         data: {
           conversationId: conversationId,
-          senderAddress: xmtpMessage.senderAddress.toLowerCase(),
-          content: xmtpMessage.content(),
+          senderAddress: senderAddress.toLowerCase(),
+          content: content,
           messageType: messageType,
-          xmtpMessageId: xmtpMessage.id,
-          sentAt: xmtpMessage.sent
+          sentAt: new Date()
         }
       })
 
@@ -87,7 +75,7 @@ export class ChatPersistenceService {
           id: conversationId
         },
         data: {
-          lastMessageAt: xmtpMessage.sent
+          lastMessageAt: new Date()
         }
       })
 

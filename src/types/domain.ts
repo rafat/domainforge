@@ -17,5 +17,5 @@ export interface Template {
   name: string
   preview: string
   description: string
-  category: 'minimal' | 'modern' | 'corporate' | 'creative'
+  category: 'minimal' | 'modern' | 'corporate' | 'creative' | 'elegant' | 'tech'
 }

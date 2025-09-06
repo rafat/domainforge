@@ -3,6 +3,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useWallet } from '@/hooks/useWallet'
 import { DomaDomain as DomainNFT } from '@/types/doma'
 
 interface DomainCardProps {
@@ -11,6 +12,7 @@ interface DomainCardProps {
 }
 
 export default function DomainCard({ domain, onQuickOffer }: DomainCardProps) {
+  const { address, isConnected } = useWallet()
   const [showQuickOffer, setShowQuickOffer] = useState(false)
   const [offerAmount, setOfferAmount] = useState('')
 
@@ -21,6 +23,13 @@ export default function DomainCard({ domain, onQuickOffer }: DomainCardProps) {
       setShowQuickOffer(false)
     }
   }
+
+  // Handle both database domain model (owner) and blockchain domain model (ownerAddress)
+  const owner = (domain as any).owner || (domain as any).ownerAddress || ''
+  const isOwner = isConnected && address && owner && owner.toLowerCase() === address.toLowerCase()
+  
+  // For blockchain domains, we need to get the tokenId from the tokens array
+  const tokenId = domain.tokenId || ((domain as any).tokens && (domain as any).tokens.length > 0 ? (domain as any).tokens[0].tokenId : null)
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
@@ -63,7 +72,7 @@ export default function DomainCard({ domain, onQuickOffer }: DomainCardProps) {
 
         <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
           <div className="flex items-center space-x-4">
-            <span>Token #{domain.tokenId}</span>
+            <span>Token #{tokenId ? tokenId.slice(0, 10) + '...' : 'N/A'}</span>
             {domain.expiry && (
               <span>
                 Expires: {new Date(domain.expiry).toLocaleDateString()}
@@ -74,7 +83,7 @@ export default function DomainCard({ domain, onQuickOffer }: DomainCardProps) {
 
         <div className="flex items-center space-x-3">
           <Link
-            href={`/domains/${domain.tokenId}`}
+            href={tokenId ? `/domains/${tokenId}` : '#'}
             className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg font-medium text-center hover:bg-blue-700 transition-colors"
           >
             View Details
@@ -89,6 +98,35 @@ export default function DomainCard({ domain, onQuickOffer }: DomainCardProps) {
             </button>
           )}
         </div>
+
+                {isOwner && domain.id && domain.tokenId && (
+          <div className="mt-3 flex space-x-2">
+            {domain.isActive ? (
+              <>
+                <Link
+                  href={`/landing/${domain.name}`}
+                  target="_blank"
+                  className="flex-1 text-center text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200 transition-colors"
+                >
+                  View Page
+                </Link>
+                <Link
+                  href={`/builder/${domain.id}`}
+                  className="flex-1 text-center text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition-colors"
+                >
+                  Edit Page
+                </Link>
+              </>
+            ) : (
+              <Link
+                href={`/builder/${domain.id}`}
+                className="flex-1 text-center text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition-colors"
+              >
+                Create Page
+              </Link>
+            )}
+          </div>
+        )}
 
         {showQuickOffer && (
           <div className="mt-4 p-4 bg-gray-50 rounded-lg">

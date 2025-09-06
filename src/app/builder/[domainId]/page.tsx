@@ -13,6 +13,7 @@ export default function BuilderPage() {
   const { address, isConnected } = useWallet()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [domain, setDomain] = useState<DomaDomain | null>(null)
 
   useEffect(() => {
     if (!isConnected) {
@@ -42,6 +43,8 @@ export default function BuilderPage() {
         setError('You do not own this domain')
         return
       }
+      
+      setDomain(domain)
     } catch (err: any) {
       console.error('Error checking domain ownership:', err)
       setError(err.message || 'Failed to load domain')
@@ -93,7 +96,7 @@ export default function BuilderPage() {
         </div>
         
         <div className="bg-white rounded-lg shadow-sm p-6">
-          <PageEditor domainId={domainId as string} />
+          <PageEditor initialDomain={domain} />
         </div>
       </div>
     </div>

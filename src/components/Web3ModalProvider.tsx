@@ -1,24 +1,22 @@
 'use client'
 
 import { ReactNode } from 'react'
-import { WagmiProvider, createConfig, http } from 'wagmi'
+import { WagmiProvider } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createWeb3Modal } from '@web3modal/wagmi/react'
+import { wagmiConfig } from '@/lib/wagmi' // Import from centralized config
 import { domaTestnet } from '@/lib/chains'
-import { injected, walletConnect } from '@wagmi/connectors'
 
-// Create config inside the client component to avoid serialization issues
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || ''
 
-const wagmiConfig = createConfig({
-  chains: [domaTestnet],
-  connectors: [
-    injected(),
-    ...(projectId ? [walletConnect({ projectId, showQrModal: true })] : []),
-  ],
-  transports: {
-    [domaTestnet.id]: http(),
-  },
-})
+// Only create Web3Modal if we have a project ID
+if (projectId) {
+  createWeb3Modal({
+    wagmiConfig,
+    projectId,
+    defaultChain: domaTestnet,
+  })
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,7 +26,7 @@ const queryClient = new QueryClient({
   },
 })
 
-export default function Web3ModalProvider({ children }: { children: ReactNode }) {
+export function Web3ModalProvider({ children }: { children: ReactNode }) {
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
@@ -37,3 +35,6 @@ export default function Web3ModalProvider({ children }: { children: ReactNode })
     </WagmiProvider>
   )
 }
+
+// Re-export for compatibility
+export { wagmiConfig }

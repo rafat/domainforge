@@ -1,10 +1,10 @@
-## XMTP Chat Enhancement Documentation
+## Real-time Chat Enhancement Documentation
 
-This document describes the enhancements made to the XMTP Chat functionality in DomainForge.
+This document describes the enhancements made to the real-time chat functionality in DomainForge.
 
 ## Overview
 
-The XMTP Chat has been enhanced with the following features:
+The real-time chat has been enhanced with the following features:
 1. **Offer Integration in Chat** - Connect OfferButton to Doma's Orderbook API
 2. **Offer Status Tracking** - Real-time tracking using Poll API
 3. **Real-time Notifications** - Notifications for offer updates
@@ -12,7 +12,7 @@ The XMTP Chat has been enhanced with the following features:
 5. **Persistent Conversations** - Store conversations and messages in database for persistence
 6. **Message History** - Retain conversation history across sessions
 7. **Unread Tracking** - Track unread messages for better UX
-8. **Message Synchronization** - Keep XMTP and database in sync
+8. **Message Synchronization** - Keep all clients in sync using Supabase Realtime
 9. **Reliability Improvements** - Messages survive network interruptions
 
 ## Key Components
@@ -33,7 +33,7 @@ Enhanced with:
 - **System Messages**: Displays event notifications in chat
 - **Notification Management**: Clear notifications functionality
 - **Persistent Conversations**: Stores messages in database for history retention
-- **Message Deduplication**: Prevents duplicate messages from XMTP and database
+- **Message Deduplication**: Prevents duplicate messages
 - **Unread Tracking**: Tracks unread messages for better UX
 
 ### 3. OfferNotificationService (`src/lib/offerNotificationService.ts`)
@@ -54,13 +54,13 @@ New service for handling persistent chat conversations:
 - **Conversation History**: Retrieves conversation history for domains
 - **Unread Count**: Tracks unread message counts for users
 
-### 5. Enhanced XMTP Hook (`src/hooks/useXMTP.ts`)
+### 5. useRealtimeChat Hook (`src/hooks/useRealTimeChat.ts`)
 
-Enhanced with persistence features:
-- **Persistent Conversation Creation**: Creates XMTP conversation and database record
-- **Message Persistence**: Saves sent and received messages to database
-- **Message Loading**: Loads messages from both XMTP and database
-- **Message Status Updates**: Updates message status in database
+Custom React hook for handling real-time chat conversations:
+- **Conversation Management**: Creates or joins conversation rooms via API
+- **Message Loading**: Loads historical messages from database
+- **Real-time Subscription**: Subscribes to new messages using Supabase Realtime
+- **Message Sending**: Sends messages via secure backend API
 
 ### 6. DomaService (`src/lib/doma.ts`)
 
@@ -140,7 +140,7 @@ const handleOfferEvent = (event) => {
 
 Test the enhancements with:
 ```bash
-node scripts/test-xmtp-chat-enhancements.js
+node scripts/test-realtime-chat-enhancements.js
 ```
 
 ## Future Improvements

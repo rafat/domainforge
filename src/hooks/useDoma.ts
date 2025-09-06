@@ -99,7 +99,7 @@ export function useDoma() {
   }
 
   // New method to get paginated offers
-  const getPaginatedOffers = async (filters: any = {}, useCache: boolean = false) {
+  const getPaginatedOffers = async (filters: any = {}, useCache: boolean = false) => {
     try {
       return await domaService.getPaginatedOffers(filters, useCache)
     } catch (error) {

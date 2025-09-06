@@ -94,6 +94,12 @@ function DomainBlockchainCard({ domain }: { domain: DomaNameModel }) {
   const isExpired = new Date(domain.expiresAt) < new Date()
   const isClaimed = !!domain.claimedBy
   
+  // Get the owner address from the first token
+  const ownerAddress = domain.tokens && domain.tokens.length > 0 ? domain.tokens[0].ownerAddress : ''
+  
+  // Get the token ID from the first token
+  const tokenId = domain.tokens && domain.tokens.length > 0 ? domain.tokens[0].tokenId : ''
+  
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 h-fit">
       <div className="p-6">
@@ -194,6 +200,18 @@ function DomainBlockchainCard({ domain }: { domain: DomaNameModel }) {
             </div>
           )}
         </div>
+        
+        {/* Add landing page button for owners */}
+        {ownerAddress && tokenId && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <a
+              href={`/builder/new?tokenId=${tokenId}&domainName=${encodeURIComponent(domain.name)}`}
+              className="w-full text-center text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors block"
+            >
+              Create Landing Page
+            </a>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -265,7 +283,7 @@ export default function BlockchainUserDomainsSection({ debugAddress }: Blockchai
                 No Domains Found
               </h3>
               <p className="text-gray-600 mb-4">
-                You don't own any domains on the blockchain yet.
+                You don&#39;t own any domains on the blockchain yet.
               </p>
               <p className="text-sm text-gray-500 mb-6">
                 Start building your digital identity by minting or purchasing a domain.

@@ -1,8 +1,8 @@
-// scripts/test-xmtp-chat-enhancements.js
-// Test script for XMTP Chat enhancements
+// scripts/test-realtime-chat-enhancements.js
+// Test script for Real-time Chat enhancements
 
-async function testXMTPChatEnhancements() {
-  console.log('🔍 Testing XMTP Chat Enhancements...')
+async function testRealtimeChatEnhancements() {
+  console.log('🔍 Testing Real-time Chat Enhancements...')
   
   try {
     // Test 1: Import and initialize offer notification service
@@ -44,7 +44,7 @@ async function testXMTPChatEnhancements() {
       console.log('❌ DomaService createOffer method missing')
     }
     
-    console.log('\n🎉 All XMTP Chat Enhancement tests completed!')
+    console.log('\n🎉 All Real-time Chat Enhancement tests completed!')
     console.log('\n💡 Key enhancements implemented:')
     console.log('1. OfferButton connected to Doma Orderbook API')
     console.log('2. Offer status tracking with real-time updates')
@@ -53,9 +53,9 @@ async function testXMTPChatEnhancements() {
     console.log('5. Notification badges in chat widget')
     
   } catch (error) {
-    console.error('❌ Error testing XMTP Chat Enhancements:', error.message)
+    console.error('❌ Error testing Real-time Chat Enhancements:', error.message)
     console.error('Stack trace:', error.stack)
   }
 }
 
-testXMTPChatEnhancements()
+testRealtimeChatEnhancements()

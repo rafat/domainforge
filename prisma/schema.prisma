@@ -23,7 +23,7 @@ model Domain {
   // Landing page data
   title        String?
   description  String?
-  template     String   @default("default")
+  template     String   @default("minimal")
   customCSS    String?
   isActive     Boolean  @default(true)
   

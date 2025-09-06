@@ -1,7 +1,7 @@
 // src/components/ConnectWalletButton.tsx
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useWallet } from '@/contexts/WalletContext'
 import { useConnect, useDisconnect } from 'wagmi'
 import { formatAddress } from '@/lib/utils'
@@ -11,6 +11,12 @@ export default function ConnectWalletButton() {
   const { connect, connectors } = useConnect()
   const { disconnect } = useDisconnect()
   const [isHovered, setIsHovered] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Fix hydration error by only rendering after component mounts
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const handleConnect = () => {
     const connector = connectors[0] // Use first available connector
@@ -21,6 +27,18 @@ export default function ConnectWalletButton() {
 
   const handleDisconnect = () => {
     disconnect()
+  }
+
+  // Don't render anything until component is mounted to prevent hydration mismatch
+  if (!isMounted) {
+    return (
+      <button
+        className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors opacity-50 cursor-not-allowed"
+        disabled
+      >
+        Connect Wallet
+      </button>
+    )
   }
 
   if (isWrongNetwork) {

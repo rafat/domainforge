@@ -32,6 +32,20 @@ const templates: Template[] = [
     preview: '/templates/creative-preview.png',
     description: 'Bold, artistic design for unique domains',
     category: 'creative'
+  },
+  {
+    id: 'elegant',
+    name: 'Elegant',
+    preview: '/templates/elegant-preview.png',
+    description: 'Sophisticated design with premium aesthetics',
+    category: 'elegant'
+  },
+  {
+    id: 'tech',
+    name: 'Tech',
+    preview: '/templates/tech-preview.png',
+    description: 'Modern tech-focused design for developers',
+    category: 'tech'
   }
 ]
 
@@ -43,7 +57,7 @@ interface TemplateSelectorProps {
 export function TemplateSelector({ selected, onChange }: TemplateSelectorProps) {
   const [activeCategory, setActiveCategory] = useState<string>('all')
 
-  const categories = ['all', 'minimal', 'modern', 'corporate', 'creative']
+  const categories = ['all', 'minimal', 'modern', 'corporate', 'creative', 'elegant', 'tech']
 
   const filteredTemplates = activeCategory === 'all' 
     ? templates 
@@ -55,12 +69,12 @@ export function TemplateSelector({ selected, onChange }: TemplateSelectorProps) 
         <h3 className="text-lg font-semibold mb-2">Choose Template</h3>
         
         {/* Category Filter */}
-        <div className="flex space-x-2 mb-4">
+        <div className="flex flex-wrap space-x-2 mb-4">
           {categories.map(category => (
             <button
               key={category}
               onClick={() => setActiveCategory(category)}
-              className={`px-3 py-1 rounded-full text-sm capitalize transition-colors ${
+              className={`px-3 py-1 rounded-full text-sm capitalize transition-colors mb-2 ${
                 activeCategory === category
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -73,7 +87,7 @@ export function TemplateSelector({ selected, onChange }: TemplateSelectorProps) 
       </div>
 
       {/* Templates Grid */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {filteredTemplates.map(template => (
           <div
             key={template.id}
@@ -85,6 +99,7 @@ export function TemplateSelector({ selected, onChange }: TemplateSelectorProps) 
             }`}
           >
             <div className="aspect-video bg-gray-100 relative">
+              {/* 
               <img
                 src={template.preview}
                 alt={template.name}
@@ -93,6 +108,7 @@ export function TemplateSelector({ selected, onChange }: TemplateSelectorProps) 
                   (e.target as HTMLImageElement).src = '/templates/placeholder.png'
                 }}
               />
+              */}
               {selected === template.id && (
                 <div className="absolute top-2 right-2 bg-blue-500 text-white rounded-full p-1">
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">

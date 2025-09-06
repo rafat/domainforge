@@ -1,46 +1,160 @@
 // src/components/builder/PageEditor.tsx
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useDomainData } from '@/hooks/useDomainData'
 import { TemplateSelector } from './TemplateSelector'
 import { PreviewPanel } from './PreviewPanel'
+import { DomaDomain } from '@/types/doma'
 
 interface PageEditorProps {
-  domainId: string
+  domainId?: string
+  initialDomain?: DomaDomain
+  onSave?: (data: any) => void
 }
 
-export function PageEditor({ domainId }: PageEditorProps) {
-  const { domain, updateDomain } = useDomainData(domainId)
-  const [formData, setFormData] = useState({
-    title: domain?.title || '',
-    description: domain?.description || '',
-    template: domain?.template || 'minimal',
-    buyNowPrice: domain?.buyNowPrice || '',
-    acceptOffers: domain?.acceptOffers || true,
-    isActive: domain?.isActive || false
+interface CustomizationOptions {
+  primaryColor: string
+  secondaryColor: string
+  accentColor: string
+  backgroundColor: string
+  cardBackgroundColor: string
+  fontFamily: string
+  borderRadius: string
+  buttonStyle: 'solid' | 'outline' | 'gradient'
+  layoutSpacing: 'compact' | 'normal' | 'spacious'
+  textAlign: 'left' | 'center' | 'right'
+}
+
+interface FormData {
+  title: string
+  description: string
+  template: string
+  buyNowPrice: string
+  acceptOffers: boolean
+}
+
+export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps) {
+  const router = useRouter()
+  const [domain, setDomain] = useState<DomaDomain | null>(initialDomain || null)
+  const [formData, setFormData] = useState<FormData>({
+    title: initialDomain?.title || domain?.title || '',
+    description: initialDomain?.description || domain?.description || '',
+    template: initialDomain?.template || domain?.template || 'minimal',
+    buyNowPrice: initialDomain?.buyNowPrice || domain?.buyNowPrice || '',
+    acceptOffers: initialDomain?.acceptOffers !== undefined ? initialDomain.acceptOffers : (domain?.acceptOffers !== undefined ? domain?.acceptOffers : true)
   })
+  
+  const [customization, setCustomization] = useState<CustomizationOptions>({
+    primaryColor: '#3b82f6', // blue-500
+    secondaryColor: '#10b981', // emerald-500
+    accentColor: '#8b5cf6', // violet-500
+    backgroundColor: '#ffffff',
+    cardBackgroundColor: '#ffffff',
+    fontFamily: 'sans-serif',
+    borderRadius: 'rounded-lg',
+    buttonStyle: 'solid',
+    layoutSpacing: 'normal',
+    textAlign: 'center'
+  })
+  
+  const [activeTab, setActiveTab] = useState<'content' | 'design' | 'settings'>('content')
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
 
-  const handleSave = async () => {
+  // Load customization from domain if it exists
+  useEffect(() => {
+    const domainToUse = domain || initialDomain
+    if (domainToUse?.customCSS) {
+      try {
+        const savedCustomization = JSON.parse(domainToUse.customCSS)
+        setCustomization(savedCustomization)
+      } catch (e) {
+        console.warn('Failed to parse customization data')
+      }
+    }
+  }, [domain, initialDomain])
+
+  const updateDomain = async (domainName: string, updates: any) => {
     try {
-      setSaving(true)
-      await updateDomain(domainId, formData)
-      alert('Changes saved successfully!')
-    } catch (error) {
-      console.error('Failed to save changes:', error)
-      alert('Failed to save changes. Please try again.')
-    } finally {
-      setSaving(false)
+      console.log('Updating domain:', domainName, updates);
+      // Use the domains API with name filter to find and update the domain
+      const response = await fetch(`/api/domains?name=${domainName}`, {
+        method: 'GET'
+      })
+      
+      if (!response.ok) throw new Error('Failed to fetch domain')
+      
+      const data = await response.json()
+      console.log('Fetch domain response:', data);
+      if (!data.domains || data.domains.length === 0) {
+        throw new Error('Domain not found')
+      }
+      
+      const domainToUpdate = data.domains[0]
+      console.log('Domain to update:', domainToUpdate);
+      
+      // Update the domain using the database ID endpoint
+      const updateResponse = await fetch(`/api/domain/${domainToUpdate.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      })
+      
+      if (!updateResponse.ok) throw new Error('Failed to update domain')
+      
+      const updatedDomain = await updateResponse.json()
+      console.log('Updated domain response:', updatedDomain);
+      setDomain(updatedDomain)
+      return updatedDomain
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : 'Update failed')
     }
   }
 
-  const handlePublish = async () => {
+  const handlePublish = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    console.log('handlePublish called');
     try {
       setPublishing(true)
-      await updateDomain(domainId, { ...formData, isActive: true })
-      alert('Landing page published successfully! Visit /landing/[tokenId] to view it.')
+      
+      // If onSave callback is provided, use it (for new domains)
+      if (onSave) {
+        console.log('Using onSave callback');
+        onSave({
+          ...formData,
+          isActive: true,
+          customCSS: JSON.stringify(customization)
+        })
+        return
+      }
+      
+      // Otherwise, update existing domain using domain name
+      console.log('Updating existing domain');
+      if (!domain?.name) {
+        throw new Error('Domain name is required')
+      }
+      
+      const updatedDomain = await updateDomain(domain.name, { 
+        ...formData, 
+        isActive: true,
+        customCSS: JSON.stringify(customization)
+      })
+      console.log('Domain updated, updatedDomain:', updatedDomain);
+      
+      // Redirect to the landing page after successful publication
+      if (updatedDomain?.name) {
+        console.log('Redirecting to landing page:', `/landing/${updatedDomain.name}`);
+        try {
+          router.push(`/landing/${updatedDomain.name}`);
+          console.log('Navigation completed');
+        } catch (navigationError) {
+          console.error('Navigation failed:', navigationError);
+          // Fallback to window.location if router.push fails
+          window.location.href = `/landing/${updatedDomain.name}`;
+        }
+      }
     } catch (error) {
       console.error('Failed to publish page:', error)
       alert('Failed to publish page. Please try again.')
@@ -49,105 +163,432 @@ export function PageEditor({ domainId }: PageEditorProps) {
     }
   }
 
-  const handleUnpublish = async () => {
-    try {
-      setPublishing(true)
-      await updateDomain(domainId, { ...formData, isActive: false })
-      alert('Landing page unpublished successfully!')
-    } catch (error) {
-      console.error('Failed to unpublish page:', error)
-      alert('Failed to unpublish page. Please try again.')
-    } finally {
-      setPublishing(false)
-    }
-  }
+  
+
+  const fontOptions = [
+    { id: 'sans-serif', name: 'Sans Serif' },
+    { id: 'serif', name: 'Serif' },
+    { id: 'monospace', name: 'Monospace' },
+    { id: "'Inter', sans-serif", name: 'Inter' },
+    { id: "'Roboto', sans-serif", name: 'Roboto' },
+    { id: "'Open Sans', sans-serif", name: 'Open Sans' }
+  ]
+
+  const borderRadiusOptions = [
+    { id: 'rounded-none', name: 'None' },
+    { id: 'rounded-sm', name: 'Small' },
+    { id: 'rounded', name: 'Medium' },
+    { id: 'rounded-lg', name: 'Large' },
+    { id: 'rounded-xl', name: 'Extra Large' },
+    { id: 'rounded-2xl', name: '2XL' }
+  ]
+
+  const layoutSpacingOptions = [
+    { id: 'compact', name: 'Compact' },
+    { id: 'normal', name: 'Normal' },
+    { id: 'spacious', name: 'Spacious' }
+  ]
+
+  const textAlignOptions = [
+    { id: 'left', name: 'Left' },
+    { id: 'center', name: 'Center' },
+    { id: 'right', name: 'Right' }
+  ]
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {/* Editor Panel */}
       <div className="space-y-6">
-        <TemplateSelector 
-          selected={formData.template}
-          onChange={(template) => setFormData({...formData, template})}
-        />
-        
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Page Title
-            </label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => setFormData({...formData, title: e.target.value})}
-              className="w-full p-3 border rounded-lg"
-              placeholder="Premium Domain For Sale"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-              className="w-full p-3 border rounded-lg h-32"
-              placeholder="Describe your domain's value..."
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Buy Now Price (ETH)
-            </label>
-            <input
-              type="number"
-              step="0.001"
-              value={formData.buyNowPrice}
-              onChange={(e) => setFormData({...formData, buyNowPrice: e.target.value})}
-              className="w-full p-3 border rounded-lg"
-            />
-          </div>
+        {/* Tabs */}
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8">
+            <button
+              onClick={() => setActiveTab('content')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'content'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Content
+            </button>
+            <button
+              onClick={() => setActiveTab('design')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'design'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Design
+            </button>
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'settings'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Settings
+            </button>
+          </nav>
         </div>
-        
+
+        {/* Content Tab */}
+        {activeTab === 'content' && (
+          <div className="space-y-6">
+            <TemplateSelector 
+              selected={formData.template}
+              onChange={(template) => setFormData({...formData, template})}
+            />
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Page Title
+                </label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData({...formData, title: e.target.value})}
+                  className="w-full p-3 border rounded-lg"
+                  placeholder="Premium Domain For Sale"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  className="w-full p-3 border rounded-lg h-32"
+                  placeholder="Describe your domain's value..."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Buy Now Price (ETH)
+                </label>
+                <input
+                  type="number"
+                  step="0.001"
+                  value={formData.buyNowPrice}
+                  onChange={(e) => setFormData({...formData, buyNowPrice: e.target.value})}
+                  className="w-full p-3 border rounded-lg"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Design Tab */}
+        {activeTab === 'design' && (
+          <div className="space-y-6">
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h3 className="font-medium text-blue-800 mb-2">Design Customization</h3>
+              <p className="text-sm text-blue-600">
+                Customize the look and feel of your landing page
+              </p>
+            </div>
+            
+            <div className="space-y-6">
+              {/* Colors */}
+              <div>
+                <h4 className="font-medium text-gray-900 mb-3">Colors</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Primary Color
+                    </label>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="color"
+                        value={customization.primaryColor}
+                        onChange={(e) => setCustomization({...customization, primaryColor: e.target.value})}
+                        className="w-10 h-10 border rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={customization.primaryColor}
+                        onChange={(e) => setCustomization({...customization, primaryColor: e.target.value})}
+                        className="flex-1 p-2 border rounded text-sm"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Secondary Color
+                    </label>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="color"
+                        value={customization.secondaryColor}
+                        onChange={(e) => setCustomization({...customization, secondaryColor: e.target.value})}
+                        className="w-10 h-10 border rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={customization.secondaryColor}
+                        onChange={(e) => setCustomization({...customization, secondaryColor: e.target.value})}
+                        className="flex-1 p-2 border rounded text-sm"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Accent Color
+                    </label>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="color"
+                        value={customization.accentColor}
+                        onChange={(e) => setCustomization({...customization, accentColor: e.target.value})}
+                        className="w-10 h-10 border rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={customization.accentColor}
+                        onChange={(e) => setCustomization({...customization, accentColor: e.target.value})}
+                        className="flex-1 p-2 border rounded text-sm"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Background
+                    </label>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="color"
+                        value={customization.backgroundColor}
+                        onChange={(e) => setCustomization({...customization, backgroundColor: e.target.value})}
+                        className="w-10 h-10 border rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={customization.backgroundColor}
+                        onChange={(e) => setCustomization({...customization, backgroundColor: e.target.value})}
+                        className="flex-1 p-2 border rounded text-sm"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Card Background
+                    </label>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="color"
+                        value={customization.cardBackgroundColor}
+                        onChange={(e) => setCustomization({...customization, cardBackgroundColor: e.target.value})}
+                        className="w-10 h-10 border rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={customization.cardBackgroundColor}
+                        onChange={(e) => setCustomization({...customization, cardBackgroundColor: e.target.value})}
+                        className="flex-1 p-2 border rounded text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Typography */}
+              <div>
+                <h4 className="font-medium text-gray-900 mb-3">Typography</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Font Family
+                    </label>
+                    <select
+                      value={customization.fontFamily}
+                      onChange={(e) => setCustomization({...customization, fontFamily: e.target.value})}
+                      className="w-full p-3 border rounded-lg"
+                    >
+                      {fontOptions.map((font) => (
+                        <option key={font.id} value={font.id}>
+                          {font.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Text Alignment
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {textAlignOptions.map((align) => (
+                        <button
+                          key={align.id}
+                          onClick={() => setCustomization({...customization, textAlign: align.id as any})}
+                          className={`py-2 px-3 border text-sm font-medium rounded-md ${
+                            customization.textAlign === align.id
+                              ? 'bg-blue-100 border-blue-500 text-blue-700'
+                              : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {align.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Layout */}
+              <div>
+                <h4 className="font-medium text-gray-900 mb-3">Layout</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Border Radius
+                    </label>
+                    <select
+                      value={customization.borderRadius}
+                      onChange={(e) => setCustomization({...customization, borderRadius: e.target.value})}
+                      className="w-full p-3 border rounded-lg"
+                    >
+                      {borderRadiusOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Spacing
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {layoutSpacingOptions.map((spacing) => (
+                        <button
+                          key={spacing.id}
+                          onClick={() => setCustomization({...customization, layoutSpacing: spacing.id as any})}
+                          className={`py-2 px-3 border text-sm font-medium rounded-md ${
+                            customization.layoutSpacing === spacing.id
+                              ? 'bg-blue-100 border-blue-500 text-blue-700'
+                              : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {spacing.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Button Style */}
+              <div>
+                <h4 className="font-medium text-gray-900 mb-3">Button Style</h4>
+                <div className="grid grid-cols-3 gap-3">
+                  {(['solid', 'outline', 'gradient'] as const).map((style) => (
+                    <button
+                      key={style}
+                      onClick={() => setCustomization({...customization, buttonStyle: style})}
+                      className={`py-2 px-3 border text-sm font-medium rounded-md ${
+                        customization.buttonStyle === style
+                          ? 'bg-blue-100 border-blue-500 text-blue-700'
+                          : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {style.charAt(0).toUpperCase() + style.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Settings Tab */}
+        {activeTab === 'settings' && (
+          <div className="space-y-6">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="font-medium text-gray-800 mb-2">Page Settings</h3>
+              <p className="text-sm text-gray-600">
+                Configure page behavior and options
+              </p>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-medium">Accept Offers</h4>
+                  <p className="text-sm text-gray-600">
+                    Allow buyers to make offers on this domain
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.acceptOffers}
+                    onChange={(e) => setFormData({...formData, acceptOffers: e.target.checked})}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+              
+              
+              
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <h4 className="font-medium text-yellow-800 mb-2">Advanced Settings</h4>
+                <p className="text-sm text-yellow-700">
+                  These settings will be available in future updates
+                </p>
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-center">
+                    <input type="checkbox" disabled className="mr-2" />
+                    <span className="text-sm text-gray-500">SEO Optimization</span>
+                  </div>
+                  <div className="flex items-center">
+                    <input type="checkbox" disabled className="mr-2" />
+                    <span className="text-sm text-gray-500">Analytics Tracking</span>
+                  </div>
+                  <div className="flex items-center">
+                    <input type="checkbox" disabled className="mr-2" />
+                    <span className="text-sm text-gray-500">Custom Domain</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Action Buttons */}
         <div className="flex flex-col space-y-3">
           <button
-            onClick={handleSave}
-            disabled={saving}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
+            type="button"
+            onClick={(e) => { e.preventDefault(); handlePublish(); }}
+            disabled={publishing}
+            className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50"
           >
-            {saving ? 'Saving...' : 'Save Changes'}
+            {publishing ? 'Publishing...' : 'Publish Landing Page'}
           </button>
           
-          {formData.isActive ? (
-            <button
-              onClick={handleUnpublish}
-              disabled={publishing}
-              className="w-full bg-yellow-600 text-white py-3 rounded-lg font-medium hover:bg-yellow-700 disabled:opacity-50"
-            >
-              {publishing ? 'Unpublishing...' : 'Unpublish Page'}
-            </button>
-          ) : (
-            <button
-              onClick={handlePublish}
-              disabled={publishing}
-              className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50"
-            >
-              {publishing ? 'Publishing...' : 'Publish Landing Page'}
-            </button>
-          )}
-          
-          {formData.isActive && (
+          {domain?.isActive && domainId && !onSave && domain && (
             <div className="text-center text-sm text-green-600 bg-green-50 p-2 rounded">
-              ✅ Page is published! Visit: /landing/{domainId}
+              ✅ Page is published! Visit: /landing/{domain.name}
             </div>
           )}
         </div>
       </div>
       
       {/* Preview Panel */}
-      <PreviewPanel domain={domain} formData={formData} />
+      <PreviewPanel domain={domain || initialDomain || null} formData={formData} customization={customization} />
     </div>
   )
 }

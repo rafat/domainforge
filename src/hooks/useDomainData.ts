@@ -4,23 +4,37 @@
 import { useState, useEffect } from 'react'
 import { DomaDomain as Domain } from '@/types/doma'
 
-export function useDomainData(domainId: string) {
-  const [domain, setDomain] = useState<Domain | null>(null)
+export function useDomainData(domainId: string, initialDomain?: Domain) {
+  const [domain, setDomain] = useState<Domain | null>(initialDomain || null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchDomainData()
-  }, [domainId])
+    // If this is a temporary domain (starts with "temp-"), don't fetch from API
+    if (domainId && domainId.startsWith('temp-')) {
+      // Use initialDomain if provided, otherwise keep the existing domain state
+      if (initialDomain) {
+        setDomain(initialDomain)
+      }
+      setLoading(false)
+      return
+    }
+    
+    // Only fetch if we have a valid domainId
+    if (domainId) {
+      fetchDomainData()
+    }
+  }, [domainId, initialDomain])
 
   const fetchDomainData = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/domain/${domainId}`)
+      // Use the tokenId endpoint to fetch domain data
+      const response = await fetch(`/api/domains/${domainId}`)
       if (!response.ok) throw new Error('Failed to fetch domain')
       
       const data = await response.json()
-      setDomain(data)
+      setDomain(data.domain)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
@@ -30,6 +44,7 @@ export function useDomainData(domainId: string) {
 
   const updateDomain = async (id: string, updates: Partial<Domain>) => {
     try {
+      // Use the tokenId endpoint since that's what's being passed from PageEditor
       const response = await fetch(`/api/domains/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },

@@ -24,7 +24,7 @@ export class DomaApiClient {
     this.apiKey = DOMA_API_KEY
   }
   
-  private async graphqlRequest(query: string, variables: any = {}, useCache: boolean = false, cacheKey?: string) {
+  private async graphqlRequest(query: string, variables: Record<string, unknown> = {}, useCache: boolean = false, cacheKey?: string) {
     // Generate cache key if not provided
     const key = cacheKey || `graphql_${JSON.stringify({ query, variables })}`;
     
@@ -298,7 +298,7 @@ export class DomaApiClient {
     return data.listings || { items: [], totalCount: 0 }
   }
   
-  async getNames(filters: any = {}, useCache: boolean = false) {
+  async getNames(filters: Record<string, unknown> = {}, useCache: boolean = false) {
     const query = `
       query GetNames($ownedBy: [AddressCAIP10!], $name: String, $tlds: [String!], $skip: Int, $take: Int, $claimStatus: NamesQueryClaimStatus, $networkIds: [String!], $registrarIanaIds: [Int!], $sortOrder: SortOrderType) {
         names(ownedBy: $ownedBy, name: $name, tlds: $tlds, skip: $skip, take: $take, claimStatus: $claimStatus, networkIds: $networkIds, registrarIanaIds: $registrarIanaIds, sortOrder: $sortOrder) {

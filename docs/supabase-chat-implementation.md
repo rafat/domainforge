@@ -1,14 +1,14 @@
-# XMTP Chat Persistent Conversations Implementation
+# Supabase Chat Implementation
 
-This document describes the implementation of persistent conversations for the XMTP chat system in DomainForge.
+This document describes the implementation of real-time chat conversations for DomainForge using Supabase.
 
 ## Overview
 
-The persistent conversation feature enhances the XMTP chat system by:
+The real-time chat feature enhances the chat system by:
 1. Storing conversations and messages in a database for persistence
 2. Providing conversation history across sessions
 3. Tracking unread messages
-4. Enabling message synchronization between XMTP and local storage
+4. Enabling real-time message synchronization using Supabase's Realtime service
 5. Improving reliability and resilience to network interruptions
 
 ## Key Components
@@ -30,19 +30,18 @@ New service for handling database operations:
 - Gets conversation history
 - Tracks unread message counts
 
-### 3. Enhanced XMTP Hook (`src/hooks/useXMTP.ts`)
+### 3. useRealtimeChat Hook (`src/hooks/useRealTimeChat.ts`)
 
-Extended with persistence features:
-- `createConversation`: Creates XMTP conversation and persistent record
-- `sendMessage`: Sends XMTP message and saves to database
-- `streamMessages`: Streams XMTP messages and saves incoming messages
-- `loadPersistentMessages`: Loads messages from database
-- `markMessagesAsRead`: Marks messages as read in database
+Custom React hook for handling real-time chat conversations:
+- Creates or joins conversation rooms
+- Fetches historical messages
+- Subscribes to new messages in real-time using Supabase's listener
+- Sends new messages via secure backend API
 
-### 4. Enhanced ChatWidget (`src/components/chat/ChatWidget.tsx`)
+### 4. ChatWidget Component (`src/components/chat/ChatWidget.tsx`)
 
-Updated with persistent conversation features:
-- Combines XMTP messages with database messages
+Updated chat widget with real-time features:
+- Combines messages from database with real-time updates
 - Deduplicates messages
 - Tracks unread message counts
 - Persists conversation state
@@ -52,32 +51,32 @@ Updated with persistent conversation features:
 ### Conversation Creation Flow
 
 1. User initiates chat with domain owner
-2. XMTP conversation is created using `createConversation`
-3. Database record is created for persistent storage
-4. Existing messages are loaded from both XMTP and database
-5. Messages are deduplicated and sorted chronologically
+2. Conversation "room" is created or retrieved via API
+3. Existing messages are loaded from database
+4. Real-time subscription is established using Supabase channels
 
 ### Message Sending Flow
 
 1. User sends message through chat interface
-2. Message is sent via XMTP using `sendMessage`
-3. Message is simultaneously saved to database
-4. Message appears in chat UI via XMTP stream
+2. Message is sent to secure backend API
+3. Message is saved to database
+4. Supabase's Realtime service broadcasts the new message
+5. All connected clients receive the message in real-time
 
 ### Message Receiving Flow
 
-1. Incoming messages are streamed via XMTP
-2. Messages are saved to database as they arrive
+1. New messages are inserted into the database via API
+2. Supabase's Realtime service notifies all subscribed clients
 3. Messages appear in chat UI in real-time
 4. Message status (delivered/read) is tracked
 
-### Persistence Features
+### Real-time Features
 
 1. **Conversation History**: Messages persist across browser sessions
-2. **Message Deduplication**: Prevents duplicate messages from XMTP and database
+2. **Message Deduplication**: Prevents duplicate messages
 3. **Unread Tracking**: Tracks unread messages for better UX
 4. **Reliability**: Messages survive network interruptions
-5. **Synchronization**: Keeps XMTP and database in sync
+5. **Synchronization**: Keeps all clients in sync
 
 ## Database Schema
 
@@ -89,7 +88,7 @@ model ChatConversation {
   domain             Domain     @relation(fields: [domainId], references: [id])
   buyerAddress       String
   sellerAddress      String
-  xmtpConversationId String     @unique
+  xmtpConversationId String     @unique  // Legacy field name, now used for conversation identification
   lastMessageAt      DateTime?
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
@@ -106,7 +105,7 @@ model ChatMessage {
   senderAddress  String
   content        String
   messageType    String       @default("text")
-  xmtpMessageId String?      @unique
+  xmtpMessageId String?      @unique  // Legacy field name, now used for message identification
   sentAt         DateTime     @default(now())
   deliveredAt    DateTime?
   readAt         DateTime?
@@ -117,8 +116,8 @@ model ChatMessage {
 
 ## API Integration
 
-The persistent chat system integrates with:
-- **XMTP**: For real-time messaging
+The real-time chat system integrates with:
+- **Supabase**: For real-time message broadcasting
 - **Database**: For message persistence
 - **Doma API**: For domain-related context
 

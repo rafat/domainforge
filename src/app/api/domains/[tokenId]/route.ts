@@ -52,7 +52,7 @@ export async function PUT(
 
   try {
     const body = await request.json()
-    const { price, forSale, records, isActive, title, description, template, buyNowPrice, acceptOffers } = body
+    const { price, forSale, records, isActive, title, description, template, buyNowPrice, acceptOffers, customCSS } = body
 
     const updateData: any = {}
     
@@ -64,6 +64,7 @@ export async function PUT(
     if (template !== undefined) updateData.template = template
     if (buyNowPrice !== undefined) updateData.buyNowPrice = buyNowPrice
     if (acceptOffers !== undefined) updateData.acceptOffers = acceptOffers
+    if (customCSS !== undefined) updateData.customCSS = customCSS
 
     const domain = await prisma.domain.update({
       where: { tokenId },

@@ -1,5 +1,5 @@
 // src/types/chat.ts
-export interface Message {
+export interface ChatMessage {
   id: string
   content: string
   sender: string

@@ -5,7 +5,7 @@ import './globals.css'
 import Navbar from '@/components/NavBar'
 import Footer from '@/components/Footer'
 import ErrorBoundary from '@/components/ErrorBoundary'
-import Web3ModalProvider from '@/components/Web3ModalProvider'
+import {Web3ModalProvider} from '@/components/Web3ModalProvider'
 import { WalletProvider } from '@/contexts/WalletContext'
 
 const inter = Inter({ subsets: ['latin'] })

@@ -295,14 +295,7 @@ export default function ProfilePage() {
                         </div>
                       </div>
                       
-                      {typeof window !== 'undefined' && 
-                       new URLSearchParams(window.location.search).get('domain') && (
-                        <div className="border-t border-gray-200 pt-6">
-                          <PageBuilderSection 
-                            domainId={new URLSearchParams(window.location.search).get('domain') || ''} 
-                          />
-                        </div>
-                      )}
+                      {/* PageBuilderSection component was here but is not needed */}
                     </div>
                   )}
                 </div>

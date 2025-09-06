@@ -11,9 +11,9 @@ DomainForge features enhanced integration with Doma Protocol including:
 - Real-time event streaming via Poll API
 - Orderbook API integration for marketplace operations
 
-## Enhanced XMTP Chat Features
+## Enhanced Real-time Chat Features
 
-DomainForge now includes enhanced XMTP chat functionality:
+DomainForge now includes enhanced real-time chat functionality:
 - Offer integration with Doma's Orderbook API
 - Real-time offer status tracking using Poll API
 - Real-time notifications for offer updates
@@ -235,7 +235,7 @@ DATABASE_URL="postgresql://username:password@localhost:5432/domainforge"
 NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id_here
 
 # Doma API Configuration (Pre-configured for testnet)
-DOMA_API_KEY=v1.93ebb5bd6e71f5a67798bf32ef482bd2910964f1a2d6857cd6d59bb68525680b
+DOMA_API_KEY=your-api-key
 NEXT_PUBLIC_DOMA_RECORD_ADDRESS=0xF6A92E0f8bEa4174297B0219d9d47fEe335f84f8
 NEXT_PUBLIC_PROXY_DOMA_RECORD_ADDRESS=0xb1508299A01c02aC3B70c7A8B0B07105aaB29E99
 NEXT_PUBLIC_OWNERSHIP_TOKEN_ADDRESS=0x424bDf2E8a6F52Bd2c1C81D9437b0DC0309DF90f
@@ -243,9 +243,6 @@ NEXT_PUBLIC_FORWARDER_ADDRESS=0xf17beC16794e018E2F0453a1282c3DA3d121f410
 NEXT_PUBLIC_CROSS_CHAIN_GATEWAY_ADDRESS=0xCE1476C791ff195e462632bf9Eb22f3d3cA07388
 NEXT_PUBLIC_DOMA_SUBGRAPH_URL=https://api-testnet.doma.xyz/graphql
 NEXT_PUBLIC_DOMA_API_URL=https://api-testnet.doma.xyz
-
-# Optional: XMTP Environment
-NEXT_PUBLIC_XMTP_ENV=dev
 
 # Optional: Pinata IPFS Configuration
 PINATA_API_KEY=your_pinata_api_key

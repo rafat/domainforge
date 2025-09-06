@@ -4,7 +4,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Project Overview
 
-DomainForge is a no-code platform for creating beautiful, SEO-optimized sales pages for Doma-tokenized domains with integrated on-chain negotiation via XMTP.
+DomainForge is a no-code platform for creating beautiful, SEO-optimized sales pages for Doma-tokenized domains with integrated on-chain negotiation via real-time chat.
 
 ## Enhanced Doma Protocol Integration
 
@@ -15,9 +15,9 @@ DomainForge now features enhanced integration with Doma Protocol including:
 - Real-time event streaming via Poll API
 - Orderbook API integration for marketplace operations
 
-## Enhanced XMTP Chat Features
+## Enhanced Real-time Chat Features
 
-DomainForge now includes enhanced XMTP chat functionality:
+DomainForge now includes enhanced real-time chat functionality:
 - Offer integration with Doma's Orderbook API
 - Real-time offer status tracking using Poll API
 - Real-time notifications for offer updates
