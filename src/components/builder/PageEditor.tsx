@@ -125,6 +125,7 @@ export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps)
         onSave({
           ...formData,
           isActive: true,
+          forSale: true, // Set forSale to true when publishing
           customCSS: JSON.stringify(customization)
         })
         return
@@ -139,6 +140,7 @@ export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps)
       const updatedDomain = await updateDomain(domain.name, { 
         ...formData, 
         isActive: true,
+        forSale: true,
         customCSS: JSON.stringify(customization)
       })
       console.log('Domain updated, updatedDomain:', updatedDomain);

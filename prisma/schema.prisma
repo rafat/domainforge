@@ -132,6 +132,7 @@ model ChatConversation {
   messages    ChatMessage[]
   
   @@map("chat_conversations")
+  @@unique([domainId, buyerAddress, sellerAddress])
 }
 
 model ChatMessage {

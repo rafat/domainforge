@@ -1,7 +1,6 @@
 // src/app/api/landing/[domainName]/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { renderTemplate, TemplateName } from '@/lib/templates'
 
 export async function GET(
   request: NextRequest,
@@ -30,38 +29,12 @@ export async function GET(
       )
     }
 
-    // Parse customization options
-    let customization = {}
-    if (domain.customCSS) {
-      try {
-        customization = JSON.parse(domain.customCSS)
-      } catch (e) {
-        console.warn('Failed to parse customization data')
-      }
-    }
+    return NextResponse.json(domain);
 
-    // Render the template with customization
-    const html = renderTemplate(
-      domain.template as TemplateName,
-      {
-        domainName: domain.name,
-        title: domain.title || '',
-        description: domain.description || '',
-        buyNowPrice: domain.buyNowPrice || ''
-      },
-      customization
-    )
-
-    // Return HTML response
-    return new NextResponse(html, {
-      headers: {
-        'Content-Type': 'text/html'
-      }
-    })
   } catch (error) {
-    console.error('Failed to generate landing page:', error)
+    console.error('Failed to fetch landing page data:', error)
     return NextResponse.json(
-      { error: 'Failed to generate landing page' },
+      { error: 'Failed to fetch landing page data' },
       { status: 500 }
     )
   }

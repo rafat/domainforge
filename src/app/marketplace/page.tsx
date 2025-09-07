@@ -67,7 +67,9 @@ export default function MarketplacePage() {
         ...(filters.priceRange && { priceRange: filters.priceRange }),
         ...(filters.length && { length: filters.length }),
         ...(filters.extension && { extension: filters.extension }),
-        ...(filters.forSale && { forSale: 'true' }),
+        forSale: 'true', // Always filter for domains marked for sale
+        hasBuyNowPrice: 'true', // Only show domains with a buy now price
+        isActive: 'true', // Only show published domains
       })
 
       const response = await fetch(`/api/domains?${params}`)

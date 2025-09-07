@@ -23,6 +23,9 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden sm:flex items-center space-x-8">
+            <Link href="/marketplace" className="text-gray-600 hover:text-gray-900">
+              Marketplace
+            </Link>
             <Link href="/my-domains" className="text-gray-600 hover:text-gray-900">
               My Domains
             </Link>
@@ -50,6 +53,13 @@ export default function Navbar() {
         {isMenuOpen && (
           <div className="sm:hidden">
             <div className="pt-2 pb-3 space-y-1 border-t border-gray-200">
+              <Link
+                href="/marketplace"
+                className="block px-3 py-2 text-base font-medium text-gray-600 hover:text-gray-900"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Marketplace
+              </Link>
               <Link
                 href="/my-domains"
                 className="block px-3 py-2 text-base font-medium text-gray-600 hover:text-gray-900"

@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import Navbar from '@/components/NavBar'
-import Footer from '@/components/Footer'
+
 import ErrorBoundary from '@/components/ErrorBoundary'
 import {Web3ModalProvider} from '@/components/Web3ModalProvider'
 import { WalletProvider } from '@/contexts/WalletContext'
@@ -38,7 +38,7 @@ export default function RootLayout({
                 <main className="flex-1">
                   {children}
                 </main>
-                <Footer />
+                
               </div>
             </ErrorBoundary>
           </WalletProvider>

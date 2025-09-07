@@ -10,6 +10,8 @@ export async function GET(request: NextRequest) {
   const sortBy = searchParams.get('sortBy') || 'createdAt'
   const sortOrder = searchParams.get('sortOrder') || 'desc'
   const forSale = searchParams.get('forSale') === 'true'
+  const hasBuyNowPrice = searchParams.get('hasBuyNowPrice') === 'true'
+  const isActive = searchParams.get('isActive') === 'true'
   const owner = searchParams.get('owner') // Add owner filter
   const name = searchParams.get('name') // Add name filter
   const minPrice = searchParams.get('minPrice') ? parseFloat(searchParams.get('minPrice')!) : undefined
@@ -19,7 +21,27 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit
 
     // Build where condition
-    const where: Record<string, unknown> = {}
+    
+    const where: {
+      name?: {
+        contains: string;
+        mode: 'insensitive';
+      } | string;
+      forSale?: boolean;
+      owner?: {
+        equals: string;
+        mode: 'insensitive';
+      };
+      price?: {
+        gte?: number;
+        lte?: number;
+      };
+      buyNowPrice?: {
+        not: null;
+      };
+      isActive?: boolean;
+    } = {};
+
     
     if (search) {
       where.name = {
@@ -37,6 +59,16 @@ export async function GET(request: NextRequest) {
       where.forSale = true
     }
 
+    if (hasBuyNowPrice) {
+      where.buyNowPrice = {
+        not: null,
+      }
+    }
+
+    if (isActive) {
+      where.isActive = true
+    }
+
     // Filter by owner (wallet address)
     if (owner) {
       where.owner = {
@@ -46,9 +78,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (minPrice !== undefined || maxPrice !== undefined) {
-      where.price = {}
-      if (minPrice !== undefined) where.price.gte = minPrice
-      if (maxPrice !== undefined) where.price.lte = maxPrice
+      where.price = {
+        ...(minPrice !== undefined && { gte: minPrice }),
+        ...(maxPrice !== undefined && { lte: maxPrice }),
+      };
     }
 
     // Build orderBy

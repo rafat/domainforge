@@ -1,11 +1,11 @@
 // src/components/chat/MessageList.tsx
 'use client'
 
-import { Message } from '@/types/chat'
+import { ChatMessage } from '@/types/chat'
 import { formatAddress, timeAgo } from '@/lib/utils'
 
 interface MessageListProps {
-  messages: Message[]
+  messages: ChatMessage[]
   currentUser: string
 }
 
@@ -35,7 +35,7 @@ export function MessageList({ messages, currentUser }: MessageListProps) {
   )
 }
 interface MessageBubbleProps {
-  message: Message
+  message: ChatMessage
   isOwn: boolean
 }
 function MessageBubble({ message, isOwn }: MessageBubbleProps) {
