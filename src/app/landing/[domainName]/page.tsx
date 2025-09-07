@@ -9,7 +9,24 @@ import { useWallet } from '@/hooks/useWallet'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { DomaDomain as Domain } from '@/types/doma'
 import { SupabaseChat } from '@/components/landing/SupabaseChat'
-import { renderTemplate } from '@/lib/templates'
+
+type CustomizationProps = {
+  primaryColor?: string,
+  secondaryColor?: string,
+  accentColor?: string,
+  backgroundColor?: string,
+  cardBackgroundColor?: string,
+  fontFamily?: string,
+  borderRadius?: string,
+  buttonStyle?: string,
+  layoutSpacing?: string,
+  textAlign?: string
+} | null;
+
+interface TemplateProps {
+  domain: Domain;
+  customization: CustomizationProps;
+}
 
 export default function LandingPage() {
   const { domainName } = useParams()
@@ -54,54 +71,36 @@ export default function LandingPage() {
 
   // Render template based on domain data
   const renderDomainTemplate = () => {
-    if (!domain) return null
+    if (!domain) return null;
 
-    // Parse customization data if it exists
-    let customization = null
+    // We still parse the customization data from the domain object
+    let customization: CustomizationProps = null;
     if (domain.customCSS) {
       try {
-        customization = JSON.parse(domain.customCSS)
+        customization = JSON.parse(domain.customCSS);
       } catch (e: unknown) {
-        console.warn('Failed to parse customization data')
+        console.warn('Failed to parse customization data');
       }
     }
 
-    // Use the shared template rendering function for customized templates
-    if (customization) {
-      const templateHtml = renderTemplate(
-        domain.template as keyof typeof templates,
-        {
-          domainName: domain.name,
-          title: domain.title || '',
-          description: domain.description || '',
-          buyNowPrice: domain.buyNowPrice || ''
-        },
-        customization
-      )
-      
-      return (
-        <div dangerouslySetInnerHTML={{ __html: templateHtml }} />
-      )
-    }
-
-    // Fallback to static templates if no customization data
+    // Now, we *always* render a React component, just passing the customization object along.
     switch (domain.template) {
       case 'minimal':
-        return <MinimalTemplate domain={domain} />
+        return <MinimalTemplate domain={domain} customization={customization} />;
       case 'modern':
-        return <ModernTemplate domain={domain} />
+        return <ModernTemplate domain={domain} customization={customization} />;
       case 'corporate':
-        return <CorporateTemplate domain={domain} />
+        return <CorporateTemplate domain={domain} customization={customization} />;
       case 'creative':
-        return <CreativeTemplate domain={domain} />
+        return <CreativeTemplate domain={domain} customization={customization} />;
       case 'elegant':
-        return <ElegantTemplate domain={domain} />
+        return <ElegantTemplate domain={domain} customization={customization} />;
       case 'tech':
-        return <TechTemplate domain={domain} />
+        return <TechTemplate domain={domain} customization={customization} />;
       default:
-        return <MinimalTemplate domain={domain} />
+        return <MinimalTemplate domain={domain} customization={customization} />;
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -117,17 +116,14 @@ export default function LandingPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Domain Not Found</h1>
           <p className="text-gray-600 mb-6">
-            {error || "The domain you&#39;re looking for doesn&#39;t exist or has been removed."}
+            {error || "The domain you're looking for doesn't exist or has been removed."}
           </p>
-          <Link
-            href="/"
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-          >
+          <Link href="/" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
             Back to Home
           </Link>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -138,7 +134,7 @@ export default function LandingPage() {
 }
 
 // Template Components
-function MinimalTemplate({ domain }: { domain: Domain }) {
+function MinimalTemplate({ domain, customization }: TemplateProps)  {
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-4xl mx-auto px-4 py-12">
@@ -209,7 +205,7 @@ function MinimalTemplate({ domain }: { domain: Domain }) {
             )}
             
             <SupabaseChat 
-              domainId={domain.tokenId} 
+              domainId={domain.id} 
               ownerAddress={domain.owner} 
               domainName={domain.name} 
             />
@@ -220,7 +216,7 @@ function MinimalTemplate({ domain }: { domain: Domain }) {
   )
 }
 
-function ModernTemplate({ domain }: { domain: Domain }) {
+function ModernTemplate({ domain, customization }: TemplateProps)  {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
       <div className="max-w-6xl mx-auto px-4 py-16">
@@ -309,7 +305,7 @@ function ModernTemplate({ domain }: { domain: Domain }) {
             )}
 
             <SupabaseChat 
-              domainId={domain.tokenId} 
+              domainId={domain.id} 
               ownerAddress={domain.owner} 
               domainName={domain.name} 
             />
@@ -320,7 +316,7 @@ function ModernTemplate({ domain }: { domain: Domain }) {
   )
 }
 
-function CorporateTemplate({ domain }: { domain: Domain }) {
+function CorporateTemplate({ domain, customization }: TemplateProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm">
@@ -414,7 +410,7 @@ function CorporateTemplate({ domain }: { domain: Domain }) {
             )}
 
             <SupabaseChat 
-              domainId={domain.tokenId} 
+              domainId={domain.id} 
               ownerAddress={domain.owner} 
               domainName={domain.name} 
             />
@@ -425,7 +421,7 @@ function CorporateTemplate({ domain }: { domain: Domain }) {
   )
 }
 
-function CreativeTemplate({ domain }: { domain: Domain }) {
+function CreativeTemplate({ domain, customization }: TemplateProps)  {
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
       {/* Animated background */}
@@ -518,7 +514,7 @@ function CreativeTemplate({ domain }: { domain: Domain }) {
             )}
 
             <SupabaseChat 
-              domainId={domain.tokenId} 
+              domainId={domain.id} 
               ownerAddress={domain.owner} 
               domainName={domain.name} 
             />
@@ -529,7 +525,7 @@ function CreativeTemplate({ domain }: { domain: Domain }) {
   )
 }
 
-function ElegantTemplate({ domain }: { domain: Domain }) {
+function ElegantTemplate({ domain, customization }: TemplateProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 to-amber-50">
       <div className="max-w-5xl mx-auto px-4 py-16">
@@ -620,7 +616,7 @@ function ElegantTemplate({ domain }: { domain: Domain }) {
             )}
 
             <SupabaseChat 
-              domainId={domain.tokenId} 
+              domainId={domain.id} 
               ownerAddress={domain.owner} 
               domainName={domain.name} 
             />
@@ -631,7 +627,7 @@ function ElegantTemplate({ domain }: { domain: Domain }) {
   )
 }
 
-function TechTemplate({ domain }: { domain: Domain }) {
+function TechTemplate({ domain, customization }: TemplateProps)  {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white">
       <div className="max-w-6xl mx-auto px-4 py-16">
@@ -762,7 +758,7 @@ function TechTemplate({ domain }: { domain: Domain }) {
             )}
 
             <SupabaseChat 
-              domainId={domain.tokenId} 
+              domainId={domain.id} 
               ownerAddress={domain.owner} 
               domainName={domain.name} 
             />

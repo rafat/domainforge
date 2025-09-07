@@ -1,237 +1,227 @@
 .
-./tsconfig.node.json
-./dist
-./SETUP.md
-./postcss.config.mjs
-./tsconfig.tsbuildinfo
-./Intro.md
-./node_modules
-./prisma
-./prisma/migrations
-./prisma/migrations/migration_lock.toml
-./prisma/migrations/20250831141949_init
-./prisma/migrations/20250831141949_init/migration.sql
-./prisma/migrations/20250905113232_domaininit
-./prisma/migrations/20250905113232_domaininit/migration.sql
-./prisma/migrations/20250902050939_add_chat_persistence
-./prisma/migrations/20250902050939_add_chat_persistence/migration.sql
-./prisma/schema.prisma
-./Doma.md
-./docs
-./docs/realtime-chat-enhancements.md
-./docs/test-files-status.md
-./docs/supabase-chat-implementation.md
-./docs/enhanced-subgraph-api.md
-./.next
-./next-env.d.ts
-./README.md
-./public
-./public/file.svg
-./public/vercel.svg
-./public/next.svg
-./public/templates
-./public/templates/creative-preview.png
-./public/templates/modern-preview.png
-./public/templates/minimal-preview.png
-./public/templates/corporate-preview.png
-./public/templates/tech-preview.png
-./public/templates/elegant-preview.png
-./public/globe.svg
-./public/window.svg
-./.gitignore
-./package-lock.json
-./package.json
-./.env
-./scripts
-./scripts/comprehensive-poll-test.js
-./scripts/checkTemplates.js
-./scripts/add-test-domain.js
-./scripts/test-all.sh
-./scripts/doma-api-usage-example.js
-./scripts/testRenderTemplate.js
-./scripts/test-summary.sh
-./scripts/poll-api-demo.js
-./scripts/test-poll-api-fixed.js
-./scripts/checkDomain.js
-./scripts/test-poll-api-node.js
-./scripts/testRegex.js
-./scripts/test-orderbook-proxy.js
-./scripts/test-cache-simple.js
-./scripts/generateTemplatePreviews.js
-./scripts/test-doma-api.js
-./scripts/test-orderbook-api-fixed.js
-./scripts/test-xmtp-chat-enhancements.js
-./scripts/continuous-polling-service.js
-./scripts/verify-chat-tables.js
-./scripts/testTemplate.js
-./scripts/comprehensive-test-status.sh
-./scripts/identify-ts-issues.sh
-./scripts/debug-poll-request.js
-./scripts/test-doma-cache-fixed.js
-./scripts/simpleTest.js
-./scripts/test-persistent-chat.js
-./scripts/seed-domains.js
-./scripts/debug-test.js
-./Changes.md
-./tsconfig.json
-./project-structure.txt
-./.env.example
-./.git
-./eslint.config.mjs
-./next.config.ts
-./src
-./src/types
-./src/types/doma.ts
-./src/types/chat.ts
-./src/types/domaEvents.ts
-./src/types/domain.ts
-./src/contexts
-./src/contexts/WalletContext.tsx
-./src/app
-./src/app/landing
-./src/app/landing/[domainName]
-./src/app/landing/[domainName]/page.tsx
-./src/app/favicon.ico
-./src/app/test-wallet-client
-./src/app/test-wallet-client/page.tsx
-./src/app/domains
-./src/app/domains/[tokenId]
-./src/app/domains/[tokenId]/page.tsx
-./src/app/mint
-./src/app/mint/page.tsx
-./src/app/marketplace
-./src/app/marketplace/page.tsx
-./src/app/my-domains
-./src/app/my-domains/page.tsx
-./src/app/test-sanity
-./src/app/test-sanity/page.tsx
-./src/app/profile
-./src/app/profile/page.tsx
-./src/app/layout.tsx
-./src/app/api
-./src/app/api/doma
-./src/app/api/doma/enhanced-test
-./src/app/api/doma/enhanced-test/route.ts
-./src/app/api/doma/reset-polling
-./src/app/api/doma/reset-polling/route.ts
-./src/app/api/doma/offers
-./src/app/api/doma/offers/route.ts
-./src/app/api/doma/test-poll
-./src/app/api/doma/test-poll/route.ts
-./src/app/api/doma/domains
-./src/app/api/doma/domains/route.ts
-./src/app/api/doma/debug-poll
-./src/app/api/doma/debug-poll/route.ts
-./src/app/api/doma/test
-./src/app/api/doma/test/route.ts
-./src/app/api/doma/poll-events
-./src/app/api/doma/poll-events/route.ts
-./src/app/api/offers
-./src/app/api/offers/route.ts
-./src/app/api/offers/[offerId]
-./src/app/api/offers/[offerId]/accept
-./src/app/api/offers/[offerId]/accept/route.ts
-./src/app/api/offers/[offerId]/reject
-./src/app/api/offers/[offerId]/reject/route.ts
-./src/app/api/landing
-./src/app/api/landing/[domainName]
-./src/app/api/landing/[domainName]/route.ts
-./src/app/api/screenshot
-./src/app/api/screenshot/route.ts
-./src/app/api/messages
-./src/app/api/domains
-./src/app/api/domains/mint
-./src/app/api/domains/mint/route.ts
-./src/app/api/domains/route.ts
-./src/app/api/domains/check
-./src/app/api/domains/check/route.ts
-./src/app/api/domains/[tokenId]
-./src/app/api/domains/[tokenId]/offers
-./src/app/api/domains/[tokenId]/offers/route.ts
-./src/app/api/domains/[tokenId]/route.ts
-./src/app/api/domains/[tokenId]/list
-./src/app/api/domains/[tokenId]/list/route.ts
-./src/app/api/domains/[tokenId]/buy
-./src/app/api/domains/[tokenId]/buy/route.ts
-./src/app/api/test
-./src/app/api/test/route.ts
-./src/app/api/chat
-./src/app/api/chat/message
-./src/app/api/chat/message/route.ts
-./src/app/api/chat/history
-./src/app/api/chat/history/route.ts
-./src/app/api/chat/conversation
-./src/app/api/chat/conversation/route.ts
-./src/app/api/ipfs
-./src/app/api/ipfs/pin
-./src/app/api/ipfs/pin/route.ts
-./src/app/api/ipfs/unpin
-./src/app/api/ipfs/unpin/route.ts
-./src/app/api/domain
-./src/app/api/domain/[id]
-./src/app/api/domain/[id]/route.ts
-./src/app/api/stats
-./src/app/api/stats/route.ts
-./src/app/api/analytics
-./src/app/api/analytics/route.ts
-./src/app/builder
-./src/app/builder/test
-./src/app/builder/test/page.tsx
-./src/app/builder/[domainId]
-./src/app/builder/[domainId]/page.tsx
-./src/app/builder/new
-./src/app/builder/new/page.tsx
-./src/app/page.tsx
-./src/app/globals.css
-./src/app/analytics
-./src/app/analytics/[tokenId]
-./src/app/analytics/[tokenId]/page.tsx
-./src/components
-./src/components/NavBar.tsx
-./src/components/offers
-./src/components/offers/OffersList.tsx
-./src/components/landing
-./src/components/landing/DomainHeader.tsx
-./src/components/landing/SupabaseChat.tsx
-./src/components/landing/OwnershipHistory.tsx
-./src/components/DebugWalletSwitcher.tsx
-./src/components/OfferCard.tsx
-./src/components/UserDomainsSection.tsx
-./src/components/chat
-./src/components/chat/MessageInput.tsx
-./src/components/chat/ChatWidget.tsx
-./src/components/chat/MessageList.tsx
-./src/components/chat/OfferButton.tsx
-./src/components/ConnectWalletButton.tsx
-./src/components/Footer.tsx
-./src/components/BlockchainUserDomainsSection.tsx
-./src/components/LoadingSpinner.tsx
-./src/components/Web3ModalProvider.tsx
-./src/components/DomainCard.tsx
-./src/components/builder
-./src/components/builder/PreviewPanel.tsx
-./src/components/builder/TemplateSelector.tsx
-./src/components/builder/PageEditor.tsx
-./src/components/ErrorBoundary.tsx
-./src/hooks
-./src/hooks/useRealTimeChat.ts
-./src/hooks/useDoma.ts
-./src/hooks/useDomaBlockchainDomains.ts
-./src/hooks/useUserDomains.ts
-./src/hooks/useDomainData.ts
-./src/hooks/useWallet.ts
-./src/lib
-./src/lib/domaApi.ts
-./src/lib/doma.ts
-./src/lib/abi.ts
-./src/lib/pinata.ts
-./src/lib/utils.ts
-./src/lib/templates.ts
-./src/lib/domaPollService.ts
-./src/lib/offerNotificationService.ts
-./src/lib/cache.ts
-./src/lib/chatPersistenceService.ts
-./src/lib/wagmi.ts
-./src/lib/supabase.ts
-./src/lib/chains.ts
-./src/lib/db.ts
+├── Changes.md
+├── docs
+│   ├── enhanced-subgraph-api.md
+│   ├── realtime-chat-enhancements.md
+│   ├── supabase-chat-implementation.md
+│   └── test-files-status.md
+├── Doma.md
+├── eslint.config.mjs
+├── Intro.md
+├── next-env.d.ts
+├── next.config.ts
+├── package-lock.json
+├── package.json
+├── postcss.config.mjs
+├── prisma
+│   ├── migrations
+│   │   ├── 20250831141949_init
+│   │   │   └── migration.sql
+│   │   ├── 20250902050939_add_chat_persistence
+│   │   │   └── migration.sql
+│   │   ├── 20250905113232_domaininit
+│   │   │   └── migration.sql
+│   │   └── migration_lock.toml
+│   └── schema.prisma
+├── project-structure.txt
+├── public
+│   ├── file.svg
+│   ├── globe.svg
+│   ├── next.svg
+│   ├── templates
+│   │   ├── corporate-preview.png
+│   │   ├── creative-preview.png
+│   │   ├── elegant-preview.png
+│   │   ├── minimal-preview.png
+│   │   ├── modern-preview.png
+│   │   └── tech-preview.png
+│   ├── vercel.svg
+│   └── window.svg
+├── README.md
+├── scripts
+│   ├── add-test-domain.js
+│   ├── checkDomain.js
+│   ├── checkTemplates.js
+│   ├── comprehensive-poll-test.js
+│   ├── comprehensive-test-status.sh
+│   ├── continuous-polling-service.js
+│   ├── debug-poll-request.js
+│   ├── debug-test.js
+│   ├── doma-api-usage-example.js
+│   ├── generateTemplatePreviews.js
+│   ├── identify-ts-issues.sh
+│   ├── poll-api-demo.js
+│   ├── seed-domains.js
+│   ├── simpleTest.js
+│   ├── test-all.sh
+│   ├── test-cache-simple.js
+│   ├── test-doma-api.js
+│   ├── test-doma-cache-fixed.js
+│   ├── test-orderbook-api-fixed.js
+│   ├── test-orderbook-proxy.js
+│   ├── test-persistent-chat.js
+│   ├── test-poll-api-fixed.js
+│   ├── test-poll-api-node.js
+│   ├── test-realtime-chat-enhancements.js
+│   ├── test-summary.sh
+│   ├── testRegex.js
+│   ├── testRenderTemplate.js
+│   ├── testTemplate.js
+│   └── verify-chat-tables.js
+├── SETUP.md
+├── src
+│   ├── app
+│   │   ├── analytics
+│   │   │   └── [tokenId]
+│   │   │       └── page.tsx
+│   │   ├── api
+│   │   │   ├── analytics
+│   │   │   │   └── route.ts
+│   │   │   ├── chat
+│   │   │   │   ├── conversation
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── history
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── message
+│   │   │   │       └── route.ts
+│   │   │   ├── doma
+│   │   │   │   ├── debug-poll
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── domains
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── enhanced-test
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── offers
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── poll-events
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── reset-polling
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── test
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── test-poll
+│   │   │   │       └── route.ts
+│   │   │   ├── domain
+│   │   │   │   └── [id]
+│   │   │   │       └── route.ts
+│   │   │   ├── domains
+│   │   │   │   ├── [tokenId]
+│   │   │   │   │   ├── buy
+│   │   │   │   │   ├── list
+│   │   │   │   │   ├── offers
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── check
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── mint
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── route.ts
+│   │   │   ├── ipfs
+│   │   │   │   ├── pin
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── unpin
+│   │   │   │       └── route.ts
+│   │   │   ├── landing
+│   │   │   │   └── [domainName]
+│   │   │   │       └── route.ts
+│   │   │   ├── messages
+│   │   │   ├── offers
+│   │   │   │   ├── [offerId]
+│   │   │   │   │   ├── accept
+│   │   │   │   │   └── reject
+│   │   │   │   └── route.ts
+│   │   │   ├── screenshot
+│   │   │   │   └── route.ts
+│   │   │   ├── stats
+│   │   │   │   └── route.ts
+│   │   │   └── test
+│   │   │       └── route.ts
+│   │   ├── builder
+│   │   │   ├── [domainId]
+│   │   │   │   └── page.tsx
+│   │   │   ├── new
+│   │   │   │   └── page.tsx
+│   │   │   └── test
+│   │   │       └── page.tsx
+│   │   ├── domains
+│   │   │   └── [tokenId]
+│   │   │       └── page.tsx
+│   │   ├── favicon.ico
+│   │   ├── globals.css
+│   │   ├── landing
+│   │   │   └── [domainName]
+│   │   │       └── page.tsx
+│   │   ├── layout.tsx
+│   │   ├── marketplace
+│   │   │   └── page.tsx
+│   │   ├── mint
+│   │   │   └── page.tsx
+│   │   ├── my-domains
+│   │   │   └── page.tsx
+│   │   ├── page.tsx
+│   │   ├── profile
+│   │   │   └── page.tsx
+│   │   ├── test-sanity
+│   │   │   └── page.tsx
+│   │   └── test-wallet-client
+│   │       └── page.tsx
+│   ├── components
+│   │   ├── BlockchainUserDomainsSection.tsx
+│   │   ├── builder
+│   │   │   ├── PageEditor.tsx
+│   │   │   ├── PreviewPanel.tsx
+│   │   │   └── TemplateSelector.tsx
+│   │   ├── chat
+│   │   │   ├── ChatWidget.tsx
+│   │   │   ├── MessageInput.tsx
+│   │   │   ├── MessageList.tsx
+│   │   │   └── OfferButton.tsx
+│   │   ├── ConnectWalletButton.tsx
+│   │   ├── DebugWalletSwitcher.tsx
+│   │   ├── DomainCard.tsx
+│   │   ├── ErrorBoundary.tsx
+│   │   ├── Footer.tsx
+│   │   ├── landing
+│   │   │   ├── DomainHeader.tsx
+│   │   │   ├── OwnershipHistory.tsx
+│   │   │   └── SupabaseChat.tsx
+│   │   ├── LoadingSpinner.tsx
+│   │   ├── NavBar.tsx
+│   │   ├── OfferCard.tsx
+│   │   ├── offers
+│   │   │   └── OffersList.tsx
+│   │   ├── UserDomainsSection.tsx
+│   │   └── Web3ModalProvider.tsx
+│   ├── contexts
+│   │   └── WalletContext.tsx
+│   ├── hooks
+│   │   ├── useDoma.ts
+│   │   ├── useDomaBlockchainDomains.ts
+│   │   ├── useDomainData.ts
+│   │   ├── useRealTimeChat.ts
+│   │   ├── useUserDomains.ts
+│   │   └── useWallet.ts
+│   ├── lib
+│   │   ├── abi.ts
+│   │   ├── cache.ts
+│   │   ├── chains.ts
+│   │   ├── chatPersistenceService.ts
+│   │   ├── db.ts
+│   │   ├── doma.ts
+│   │   ├── domaApi.ts
+│   │   ├── domaPollService.ts
+│   │   ├── offerNotificationService.ts
+│   │   ├── pinata.ts
+│   │   ├── supabase.ts
+│   │   ├── templates.ts
+│   │   ├── utils.ts
+│   │   └── wagmi.ts
+│   └── types
+│       ├── chat.ts
+│       ├── doma.ts
+│       ├── domaEvents.ts
+│       └── domain.ts
+├── tsconfig.json
+├── tsconfig.node.json
+└── tsconfig.tsbuildinfo
+
+74 directories, 151 files

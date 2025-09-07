@@ -46,7 +46,8 @@ export function ChatWidget({ domainId, ownerAddress }: ChatWidgetProps) {
   const { address } = useAccount()
   
   // --- CORE CHANGE: All chat logic is now handled by this single, simple hook ---
-  const { messages: prismaMessages, isLoading, sendMessage } = useRealtimeChat(domainId, ownerAddress)
+  // For ChatWidget, the current user is the buyer and ownerAddress is the seller
+  const { messages: prismaMessages, isLoading, sendMessage } = useRealtimeChat(domainId, address, ownerAddress)
 
   const [allMessages, setAllMessages] = useState<ChatMessage[]>([])
   const [isOpen, setIsOpen] = useState(false)

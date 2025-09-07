@@ -95,9 +95,9 @@ export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps)
       const domainToUpdate = data.domains[0]
       console.log('Domain to update:', domainToUpdate);
       
-      // Update the domain using the database ID endpoint
-      const updateResponse = await fetch(`/api/domain/${domainToUpdate.id}`, {
-        method: 'PATCH',
+      // Update the domain using the tokenId endpoint with PUT method
+      const updateResponse = await fetch(`/api/domains/${domainToUpdate.tokenId}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates)
       })
@@ -106,8 +106,8 @@ export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps)
       
       const updatedDomain = await updateResponse.json()
       console.log('Updated domain response:', updatedDomain);
-      setDomain(updatedDomain)
-      return updatedDomain
+      setDomain(updatedDomain.domain)
+      return updatedDomain.domain
     } catch (err) {
       throw new Error(err instanceof Error ? err.message : 'Update failed')
     }
@@ -148,11 +148,8 @@ export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps)
         console.log('Redirecting to landing page:', `/landing/${updatedDomain.name}`);
         try {
           router.push(`/landing/${updatedDomain.name}`);
-          console.log('Navigation completed');
-        } catch (navigationError) {
-          console.error('Navigation failed:', navigationError);
-          // Fallback to window.location if router.push fails
-          window.location.href = `/landing/${updatedDomain.name}`;
+        } catch (redirectError) {
+          console.error('Router push error:', redirectError);
         }
       }
     } catch (error) {

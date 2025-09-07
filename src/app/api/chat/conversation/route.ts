@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/db' // Assuming your prisma client is exported from here
+import { prisma } from '@/lib/db'
 
 export async function POST(request: Request) {
   try {
@@ -9,25 +9,42 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Find an existing conversation
+    const lowerBuyerAddress = buyerAddress.toLowerCase()
+    const lowerSellerAddress = sellerAddress.toLowerCase()
+
+    // --- ROBUSTNESS FIX ---
+    // Find a conversation where the participants match in either role.
+    // This prevents creating duplicate conversations if a user is both a buyer and seller in different contexts.
     let conversation = await prisma.chatConversation.findFirst({
       where: {
         domainId,
-        buyerAddress: buyerAddress.toLowerCase(),
-        sellerAddress: sellerAddress.toLowerCase(),
+        // The AND/OR logic ensures we find the conversation regardless of who initiated it.
+        OR: [
+          {
+            buyerAddress: lowerBuyerAddress,
+            sellerAddress: lowerSellerAddress,
+          },
+          {
+            buyerAddress: lowerSellerAddress,
+            sellerAddress: lowerBuyerAddress,
+          },
+        ],
       },
     })
 
-    // If no conversation exists, create one
     if (!conversation) {
+      // Only create a new conversation if one was NOT found.
+      console.log(`No existing conversation found for domain ${domainId}. Creating a new one.`);
       conversation = await prisma.chatConversation.create({
         data: {
           domainId,
-          buyerAddress: buyerAddress.toLowerCase(),
-          sellerAddress: sellerAddress.toLowerCase(),
-          xmtpConversationId: `chat-${domainId}-${Date.now()}`, // Repurposing this field
+          buyerAddress: lowerBuyerAddress,
+          sellerAddress: lowerSellerAddress,
+          xmtpConversationId: `chat-${domainId}-${Date.now()}`,
         },
       })
+    } else {
+      console.log(`Found existing conversation: ${conversation.id}`);
     }
 
     return NextResponse.json(conversation)

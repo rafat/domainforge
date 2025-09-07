@@ -1,18 +1,18 @@
-// src/app/api/landing/[tokenId]/route.ts
+// src/app/api/landing/[domainName]/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { renderTemplate } from '@/lib/templates'
+import { renderTemplate, TemplateName } from '@/lib/templates'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ tokenId: string }> }
+  { params }: { params: Promise<{ domainName: string }> }
 ) {
-  const { tokenId } = await params
+  const { domainName } = await params
 
   try {
-    // Fetch domain from database
+    // Fetch domain from database by name
     const domain = await prisma.domain.findUnique({
-      where: { tokenId }
+      where: { name: domainName }
     })
 
     if (!domain) {
@@ -42,7 +42,7 @@ export async function GET(
 
     // Render the template with customization
     const html = renderTemplate(
-      domain.template as any,
+      domain.template as TemplateName,
       {
         domainName: domain.name,
         title: domain.title || '',

@@ -1,4 +1,7 @@
 // src/lib/templates.ts
+
+export type TemplateName = 'minimal' | 'modern' | 'corporate' | 'creative' | 'elegant' | 'tech';
+
 export const templates = {
   minimal: `
     <div class="min-h-screen flex items-center justify-center p-8" style="{{customStyles.background}}">
@@ -382,7 +385,7 @@ export const templates = {
 }
 
 export function renderTemplate(
-  templateName: keyof typeof templates, 
+  templateName: TemplateName, 
   data: {
     domainName: string
     title?: string

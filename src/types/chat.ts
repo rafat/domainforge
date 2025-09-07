@@ -16,7 +16,7 @@ export interface Conversation {
   id: string
   participants: string[]
   domainId: string
-  lastMessage?: Message
+  lastMessage?: ChatMessage
   createdAt: Date
   updatedAt: Date
 }

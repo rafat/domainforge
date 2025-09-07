@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useWallet } from '@/hooks/useWallet'
 import { PageEditor } from '@/components/builder/PageEditor'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import { DomaDomain } from '@/types/doma'
 
 export default function BuilderPage() {
   const { domainId } = useParams()
@@ -96,7 +97,7 @@ export default function BuilderPage() {
         </div>
         
         <div className="bg-white rounded-lg shadow-sm p-6">
-          <PageEditor initialDomain={domain} />
+          <PageEditor initialDomain={domain || undefined} />
         </div>
       </div>
     </div>
