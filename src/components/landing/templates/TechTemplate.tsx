@@ -2,8 +2,22 @@
 import Image from 'next/image';
 import { SupabaseChat } from '@/components/landing/SupabaseChat';
 import { TemplateProps } from './types';
+import LoadingSpinner from '@/components/LoadingSpinner'; // New import
+import { useDomaMarketplaceData } from '@/hooks/useDomaMarketplaceData'; // New import
 
 export function TechTemplate({ domain, customization }: TemplateProps)  {
+  const {
+    offers,
+    listings,
+    loadingDomaData,
+    domaDataError,
+    isBuying,
+    handleBuyNow,
+    isConnected,
+  } = useDomaMarketplaceData({ tokenId: domain.tokenId });
+
+  const activeListing = listings.length > 0 ? listings[0] : null; // Assuming one active listing for simplicity
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white">
       <div className="max-w-6xl mx-auto px-4 py-16">
@@ -60,7 +74,7 @@ export function TechTemplate({ domain, customization }: TemplateProps)  {
                 <div className="bg-gray-900/50 p-4 rounded-xl">
                   <div className="flex items-center mb-2">
                     <svg className="w-5 h-5 mr-2 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                     <span className="text-sm text-gray-400">Token ID</span>
                   </div>
@@ -103,34 +117,66 @@ export function TechTemplate({ domain, customization }: TemplateProps)  {
           </div>
 
           <div className="space-y-6">
-            {domain.forSale && domain.buyNowPrice ? (
-              <div className="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-1 shadow-xl">
-                <div className="bg-gray-900 p-6 rounded-2xl">
-                  <div className="text-center">
-                    <div className="text-sm text-cyan-300 mb-1">Buy Now Price</div>
-                    <div className="text-4xl font-mono font-bold mb-6">{domain.buyNowPrice} ETH</div>
-                    <button className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white py-4 rounded-xl font-bold hover:opacity-90 transition-opacity">
-                      <span className="flex items-center justify-center">
-                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                        Purchase Domain
-                      </span>
-                    </button>
-                  </div>
-                </div>
+            {loadingDomaData ? (
+              <div className="flex justify-center items-center h-32">
+                <LoadingSpinner />
+              </div>
+            ) : domaDataError ? (
+              <div className="text-red-500 text-center p-4 border border-red-200 rounded-lg">
+                {domaDataError}
               </div>
             ) : (
-              <div className="bg-gradient-to-br from-gray-700 to-gray-800 rounded-2xl p-1">
-                <div className="bg-gray-900 p-6 rounded-2xl">
-                  <div className="text-center">
-                    <div className="text-sm text-gray-400 mb-1">Not Listed for Sale</div>
-                    <p className="text-gray-400 text-sm mb-6">
-                      Contact the owner to discuss acquisition
-                    </p>
+              <>
+                {activeListing ? (
+                  <div className="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-1 shadow-xl">
+                    <div className="bg-gray-900 p-6 rounded-2xl">
+                      <div className="text-center">
+                        <div className="text-sm text-cyan-300 mb-1">Buy Now Price</div>
+                        <div className="text-4xl font-mono font-bold mb-6">
+                          {activeListing.price} {activeListing.currency?.symbol || 'USD'}
+                        </div>
+                        <button 
+                          onClick={() => handleBuyNow(activeListing)}
+                          disabled={isBuying || !isConnected}
+                          className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white py-4 rounded-xl font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+                        >
+                          <span className="flex items-center justify-center">
+                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            Purchase Domain
+                          </span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                ) : (
+                  <div className="bg-gradient-to-br from-gray-700 to-gray-800 rounded-2xl p-1">
+                    <div className="bg-gray-900 p-6 rounded-2xl">
+                      <div className="text-center">
+                        <div className="text-sm text-gray-400 mb-1">Not Listed for Sale</div>
+                        <p className="text-gray-400 text-sm mb-6">
+                          Contact the owner to discuss acquisition
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {offers.length > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 p-6 rounded-lg">
+                    <h3 className="text-lg font-semibold text-blue-900 mb-4">Active Offers ({offers.length})</h3>
+                    <ul className="space-y-2">
+                      {offers.map((offer, index) => (
+                        <li key={index} className="flex justify-between text-gray-700">
+                          <span>Offer from {offer.offererAddress.slice(0, 6)}...</span>
+                          <span className="font-bold">{offer.price} {offer.currency?.symbol || 'USD'}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
             )}
 
             <SupabaseChat 

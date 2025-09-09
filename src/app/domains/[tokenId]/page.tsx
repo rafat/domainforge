@@ -388,12 +388,12 @@ export default function DomainDetailPage() {
                                 {offer.amount} ETH
                               </div>
                               <div className="text-sm text-gray-600">
-                                From {offer.buyer.slice(0, 8)}...{offer.buyer.slice(-6)}
+                                From {offer.buyer ? `${offer.buyer.slice(0, 8)}...${offer.buyer.slice(-6)}` : 'Unknown'}
                               </div>
                             </div>
                             <div className="text-right">
                               <div className="text-sm text-gray-600">
-                                Expires {offer.expiry ? new Date(offer.expiry).toLocaleDateString() : 'N/A'}
+                                Expires {offer.expiresAt ? new Date(offer.expiresAt).toLocaleDateString() : 'N/A'}
                               </div>
                             </div>
                           </div>

@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('Doma API success, returning data')
+    console.log('Doma API success, returning data:', JSON.stringify(result, null, 2))
     return NextResponse.json(result)
   } catch (error) {
     console.error('Failed to fetch from Doma API:', error)

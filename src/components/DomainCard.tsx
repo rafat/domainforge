@@ -5,6 +5,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useWallet } from '@/hooks/useWallet'
 import { DomaDomain as DomainNFT } from '@/types/doma'
+import { formatTokenIdDisplay } from '@/utils/tokenIdUtils'
 
 interface DomainCardProps {
   domain: DomainNFT
@@ -72,7 +73,7 @@ export default function DomainCard({ domain, onQuickOffer }: DomainCardProps) {
 
         <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
           <div className="flex items-center space-x-4">
-            <span>Token #{tokenId ? tokenId.slice(0, 10) + '...' : 'N/A'}</span>
+            <span>Token #{tokenId ? formatTokenIdDisplay(tokenId) : 'N/A'}</span>
             {domain.expiry && (
               <span>
                 Expires: {new Date(domain.expiry).toLocaleDateString()}

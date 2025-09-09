@@ -223,12 +223,12 @@ export default function ProfilePage() {
                           <div>
                             <span className="font-medium text-gray-900">{offer.domainId}</span>
                             <p className="text-gray-600 mt-1">
-                              Offer from {offer.buyer.slice(0, 6)}...{offer.buyer.slice(-4)}
+                              Offer from {offer.buyer ? `${offer.buyer.slice(0, 6)}...${offer.buyer.slice(-4)}` : 'Unknown'}
                             </p>
                             <div className="mt-2 flex items-center space-x-4 text-sm text-gray-500">
                               <span>Amount: {offer.amount} ETH</span>
                               <span>•</span>
-                              <span>Expires: {new Date(offer.expiry).toLocaleDateString()}</span>
+                              <span>Expires: {new Date(offer.expiresAt).toLocaleDateString()}</span>
                             </div>
                           </div>
                           <div className="flex space-x-2">

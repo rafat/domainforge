@@ -38,7 +38,7 @@ export default function OfferCard({
     }
   }
 
-  const isExpired = new Date(offer.expiry) < new Date()
+  const isExpired = new Date(offer.expiresAt) < new Date()
   const isBuyer = address === offer.buyer
   const canAcceptOrReject = showActions && offer.status === 'PENDING' && !isExpired && !isBuyer
   const canWithdraw = showActions && offer.status === 'PENDING' && isBuyer
@@ -81,8 +81,8 @@ export default function OfferCard({
             <h3 className="text-lg font-semibold text-gray-900">
               {offer.amount} ETH
             </h3>
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(offer.status)}`}>
-              {offer.status.charAt(0) + offer.status.slice(1).toLowerCase()}
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(offer.status || 'UNKNOWN')}`}>
+              {(offer.status || 'UNKNOWN').charAt(0) + (offer.status || 'UNKNOWN').slice(1).toLowerCase()}
             </span>
             {isExpired && (
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
@@ -91,7 +91,7 @@ export default function OfferCard({
             )}
           </div>
           <p className="text-sm text-gray-600">
-            From: {offer.buyer.slice(0, 6)}...{offer.buyer.slice(-4)}
+            From: {offer.buyer ? `${offer.buyer.slice(0, 6)}...${offer.buyer.slice(-4)}` : 'Unknown'}
           </p>
         </div>
       </div>
@@ -99,7 +99,7 @@ export default function OfferCard({
       <div className="space-y-2 text-sm text-gray-600 mb-4">
         <div className="flex justify-between">
           <span>Expires:</span>
-          <span>{new Date(offer.expiry).toLocaleString()}</span>
+          <span>{new Date(offer.expiresAt).toLocaleString()}</span>
         </div>
         <div className="flex justify-between">
           <span>Created:</span>

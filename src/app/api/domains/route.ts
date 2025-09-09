@@ -122,12 +122,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, owner, registrationPeriod, price } = body
+    const { name, owner, registrationPeriod, price, forSale, tokenId } = body
 
     // Validate required fields
-    if (!name || !owner) {
+    if (!name || !owner || !tokenId) {
       return NextResponse.json(
-        { error: 'Name and owner are required' },
+        { error: 'Name, owner, and tokenId are required' },
         { status: 400 }
       )
     }
@@ -171,8 +171,8 @@ export async function POST(request: NextRequest) {
         registrationDate: now,
         expiry: expiryDate,
         price: price ? parseFloat(price) : null,
-        forSale: false,
-        tokenId: generateTokenId()
+        forSale: forSale || false,
+        tokenId: tokenId
       }
     })
 
@@ -184,8 +184,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-}
-
-function generateTokenId(): string {
-  return Math.random().toString(36).substr(2, 9) + Date.now().toString(36)
 }

@@ -110,10 +110,12 @@ export function useDomaBlockchainDomains(debugAddress?: string) {
       const caip10Address = formatAddressForCAIP10(effectiveAddress, chainId || 1)
 
       // GraphQL query to fetch names owned by the address
+      // Filter for Doma testnet domains only (networkId: eip155:97476)
       const query = `
-        query GetNamesByOwner($ownedBy: [AddressCAIP10!]!, $take: Int!, $skip: Int!) {
+        query GetNamesByOwner($ownedBy: [AddressCAIP10!]!, $networkIds: [String!], $take: Int!, $skip: Int!) {
           names(
             ownedBy: $ownedBy
+            networkIds: $networkIds
             take: $take
             skip: $skip
             claimStatus: ALL
@@ -169,6 +171,7 @@ export function useDomaBlockchainDomains(debugAddress?: string) {
 
       const variables = {
         ownedBy: [caip10Address],
+        networkIds: ["eip155:97476"], // Filter for Doma testnet only
         take: 50,
         skip: 0
       }

@@ -1,10 +1,13 @@
 // src/components/BlockchainUserDomainsSection.tsx
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useDomaBlockchainDomains } from '@/hooks/useDomaBlockchainDomains'
 import ConnectWalletButton from '@/components/ConnectWalletButton'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import { useWalletClient, usePublicClient, useSignMessage } from 'wagmi'
+import { domaApi } from '@/lib/domaApi'
+import { formatTokenIdDisplay } from '@/utils/tokenIdUtils'
 
 interface DomaTokenModel {
   tokenId: string
@@ -51,21 +54,6 @@ interface BlockchainUserDomainsSectionProps {
   debugAddress?: string
 }
 
-// Utility function to format long token IDs
-function formatTokenId(tokenId: string, maxLength: number = 20): string {
-  if (tokenId.length <= maxLength) {
-    return tokenId
-  }
-  
-  // For very long token IDs, show first 8 and last 8 characters
-  if (tokenId.length > 40) {
-    return `${tokenId.slice(0, 8)}...${tokenId.slice(-8)}`
-  }
-  
-  // For moderately long token IDs, show first 10 and last 6 characters
-  return `${tokenId.slice(0, 10)}...${tokenId.slice(-6)}`
-}
-
 // Utility function to copy text to clipboard with feedback
 function copyToClipboard(text: string) {
   if (navigator.clipboard && window.isSecureContext) {
@@ -99,6 +87,148 @@ function DomainBlockchainCard({ domain }: { domain: DomaNameModel }) {
   
   // Get the token ID from the first token
   const tokenId = domain.tokens && domain.tokens.length > 0 ? domain.tokens[0].tokenId : ''
+  
+  // Get the chain information
+  const chainInfo = domain.tokens && domain.tokens.length > 0 ? domain.tokens[0].chain : null
+  
+  // Wallet hooks
+  const { data: walletClient } = useWalletClient()
+  const publicClient = usePublicClient()
+  const { signMessageAsync } = useSignMessage()
+  // Removed direct DomaService instantiation to use API routes instead
+  
+  // State for listing management
+  const [isListing, setIsListing] = useState(false)
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [isCanceling, setIsCanceling] = useState(false)
+  const [listingPrice, setListingPrice] = useState('')
+  const [existingListingId, setExistingListingId] = useState('')
+  const [domainListings, setDomainListings] = useState<any[]>([])
+  const [loadingListings, setLoadingListings] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
+  
+  // Fetch existing listings for this domain
+  useEffect(() => {
+    const fetchDomainListings = async () => {
+      if (!isMounted || !tokenId) return
+      
+      setLoadingListings(true)
+      try {
+        const data = await domaApi.getListings(tokenId)
+        const listings = data.listings || []
+        setDomainListings(listings)
+        
+        if (listings.length > 0) {
+          const activeListing = listings[0]
+          setExistingListingId(activeListing.externalId || activeListing.id)
+          setListingPrice(activeListing.price)
+        } else {
+          setExistingListingId('')
+          setListingPrice('')
+        }
+      } catch (error) {
+        console.error('Failed to fetch domain listings:', error)
+      } finally {
+        setLoadingListings(false)
+      }
+    }
+    
+    fetchDomainListings()
+  }, [isMounted, tokenId])
+  
+  // Handle listing a domain for sale
+  const handleListDomain = async () => {
+    if (!tokenId || !listingPrice || !walletClient) return
+    
+    setIsListing(true)
+    try {
+      // Create parameters object for the listing
+      const parameters = {
+        tokenId,
+        price: listingPrice,
+        sellerAddress: walletClient.account.address,
+        chainId: 'eip155:97476', // Doma testnet chain ID
+        // Add other required parameters as needed based on the API
+      }
+      
+      // Create a message to sign that represents the listing parameters
+      const messageToSign = `List domain ${tokenId} for ${listingPrice} ETH on Doma Protocol`
+      
+      // Sign the message with the wallet
+      const signature = await signMessageAsync({ message: messageToSign })
+      
+      await domaApi.createListing(parameters, signature)
+      alert('Domain listed successfully!')
+      
+      // Refresh listings
+      const data = await domaApi.getListings(tokenId)
+      setDomainListings(data.listings || [])
+    } catch (error: any) {
+      console.error('Failed to list domain:', error)
+      alert(`Failed to list domain: ${error.message}`)
+    } finally {
+      setIsListing(false)
+    }
+  }
+  
+  // Handle updating a listing
+  const handleUpdateListing = async () => {
+    if (!tokenId || !listingPrice || !walletClient || !existingListingId) return
+    
+    setIsUpdating(true)
+    try {
+      // Create a message to sign for the update action
+      const messageToSign = `Update listing ${existingListingId} for domain ${tokenId} to ${listingPrice} ETH on Doma Protocol`
+      
+      // Sign the message with the wallet
+      const signature = await signMessageAsync({ message: messageToSign })
+      
+      // Include the signature in the update call
+      await domaApi.updateListing(existingListingId, tokenId, listingPrice, walletClient.account.address, signature)
+      alert('Listing updated successfully!')
+      
+      // Refresh listings
+      const data = await domaApi.getListings(tokenId)
+      setDomainListings(data.listings || [])
+    } catch (error: any) {
+      console.error('Failed to update listing:', error)
+      alert(`Failed to update listing: ${error.message}`)
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+  
+  // Handle canceling a listing
+  const handleCancelListing = async () => {
+    if (!existingListingId || !walletClient) return
+    
+    setIsCanceling(true)
+    try {
+      // Create a message to sign for the cancel action
+      const messageToSign = `Cancel listing ${existingListingId} on Doma Protocol`
+      
+      // Sign the message with the wallet
+      const signature = await signMessageAsync({ message: messageToSign })
+      
+      // Include the signature in the cancel call
+      await domaApi.cancelListing(existingListingId, walletClient.account.address, signature)
+      alert('Listing canceled successfully!')
+      
+      // Clear listing state
+      setDomainListings([])
+      setExistingListingId('')
+      setListingPrice('')
+    } catch (error: any) {
+      console.error('Failed to cancel listing:', error)
+      alert(`Failed to cancel listing: ${error.message}`)
+    } finally {
+      setIsCanceling(false)
+    }
+  }
   
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 h-fit">
@@ -157,7 +287,7 @@ function DomainBlockchainCard({ domain }: { domain: DomaNameModel }) {
                         className="block text-xs text-gray-500 break-all hover:text-blue-600 transition-colors cursor-pointer text-left"
                         title={`Click to copy: ${token.tokenId}`}
                       >
-                        {formatTokenId(token.tokenId)}
+                        {formatTokenIdDisplay(token.tokenId)}
                       </button>
                     </div>
                     <span className="text-blue-600 font-medium flex-shrink-0">{token.chain.name}</span>
@@ -205,11 +335,85 @@ function DomainBlockchainCard({ domain }: { domain: DomaNameModel }) {
         {ownerAddress && tokenId && (
           <div className="mt-4 pt-4 border-t border-gray-200">
             <a
-              href={`/builder/new?tokenId=${tokenId}&domainName=${encodeURIComponent(domain.name)}`}
+              href={`/builder/new?tokenId=${encodeURIComponent(tokenId)}&domainName=${encodeURIComponent(domain.name)}`}
               className="w-full text-center text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors block"
             >
               Create Landing Page
             </a>
+          </div>
+        )}
+        
+        {/* Domain Listing Management for Owners */}
+        {ownerAddress && tokenId && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <h4 className="text-sm font-medium text-gray-900 mb-2">Listing Management</h4>
+            
+            {loadingListings ? (
+              <div className="text-center py-2">
+                <span className="text-sm text-gray-500">Loading listings...</span>
+              </div>
+            ) : domainListings.length > 0 ? (
+              // Domain is already listed
+              <div className="space-y-3">
+                <div className="bg-green-50 p-3 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-green-800">Currently Listed</span>
+                    <span className="text-lg font-bold text-green-600">{domainListings[0].price} ETH</span>
+                  </div>
+                </div>
+                
+                <div className="flex space-x-2">
+                  <input
+                    type="number"
+                    step="0.001"
+                    value={listingPrice}
+                    onChange={(e) => setListingPrice(e.target.value)}
+                    placeholder="New price in ETH"
+                    className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                  <button
+                    onClick={handleUpdateListing}
+                    disabled={isUpdating || !listingPrice || listingPrice === domainListings[0].price}
+                    className="text-sm bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isUpdating ? 'Updating...' : 'Update'}
+                  </button>
+                </div>
+                
+                <button
+                  onClick={handleCancelListing}
+                  disabled={isCanceling}
+                  className="w-full text-sm bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isCanceling ? 'Canceling...' : 'Cancel Listing'}
+                </button>
+              </div>
+            ) : (
+              // Domain is not listed
+              <div className="space-y-3">
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <span className="text-sm text-gray-600">Not currently listed for sale</span>
+                </div>
+                
+                <div className="flex space-x-2">
+                  <input
+                    type="number"
+                    step="0.001"
+                    value={listingPrice}
+                    onChange={(e) => setListingPrice(e.target.value)}
+                    placeholder="Price in ETH"
+                    className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2"
+                  />
+                  <button
+                    onClick={handleListDomain}
+                    disabled={isListing || !listingPrice}
+                    className="text-sm bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isListing ? 'Listing...' : 'List'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

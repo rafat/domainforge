@@ -2,8 +2,22 @@
 import Image from 'next/image';
 import { SupabaseChat } from '@/components/landing/SupabaseChat';
 import { TemplateProps } from './types';
+import LoadingSpinner from '@/components/LoadingSpinner'; // New import
+import { useDomaMarketplaceData } from '@/hooks/useDomaMarketplaceData'; // New import
 
 export function CreativeTemplate({ domain, customization }: TemplateProps)  {
+  const {
+    offers,
+    listings,
+    loadingDomaData,
+    domaDataError,
+    isBuying,
+    handleBuyNow,
+    isConnected,
+  } = useDomaMarketplaceData({ tokenId: domain.tokenId });
+
+  const activeListing = listings.length > 0 ? listings[0] : null; // Assuming one active listing for simplicity
+
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
       {/* Animated background */}
@@ -70,29 +84,61 @@ export function CreativeTemplate({ domain, customization }: TemplateProps)  {
           </div>
 
           <div className="space-y-6">
-            {domain.forSale && domain.buyNowPrice ? (
-              <div className="bg-gradient-to-br from-pink-500 via-purple-500 to-blue-500 p-1 rounded-2xl">
-                <div className="bg-black p-6 rounded-2xl">
-                  <div className="text-center">
-                    <div className="text-sm text-gray-400 mb-2">Buy Now Price</div>
-                    <div className="text-4xl font-bold mb-6">{domain.buyNowPrice} ETH</div>
-                    <button className="w-full bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-white py-4 rounded-xl font-bold text-lg hover:scale-105 transition-transform">
-                      🚀 Claim This Masterpiece
-                    </button>
-                  </div>
-                </div>
+            {loadingDomaData ? (
+              <div className="flex justify-center items-center h-32">
+                <LoadingSpinner />
+              </div>
+            ) : domaDataError ? (
+              <div className="text-red-500 text-center p-4 border border-red-200 rounded-lg">
+                {domaDataError}
               </div>
             ) : (
-              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-1 rounded-2xl">
-                <div className="bg-black p-6 rounded-2xl">
-                  <div className="text-center">
-                    <div className="text-sm text-gray-400 mb-2">Not Listed for Sale</div>
-                    <p className="text-gray-300 text-sm mb-6">
-                      Contact the owner to discuss acquisition
-                    </p>
+              <>
+                {activeListing ? (
+                  <div className="bg-gradient-to-br from-pink-500 via-purple-500 to-blue-500 p-1 rounded-2xl">
+                    <div className="bg-black p-6 rounded-2xl">
+                      <div className="text-center">
+                        <div className="text-sm text-gray-400 mb-2">Buy Now Price</div>
+                        <div className="text-4xl font-bold mb-6">
+                          {activeListing.price} {activeListing.currency?.symbol || 'USD'}
+                        </div>
+                        <button 
+                          onClick={() => handleBuyNow(activeListing)}
+                          disabled={isBuying || !isConnected}
+                          className="w-full bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 text-white py-4 rounded-xl font-bold text-lg hover:scale-105 transition-transform disabled:opacity-50"
+                        >
+                          {isBuying ? 'Purchasing...' : (isConnected ? '🚀 Claim This Masterpiece' : 'Connect Wallet to Claim')}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                ) : (
+                  <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-1 rounded-2xl">
+                    <div className="bg-black p-6 rounded-2xl">
+                      <div className="text-center">
+                        <div className="text-sm text-gray-400 mb-2">Not Listed for Sale</div>
+                        <p className="text-gray-300 text-sm mb-6">
+                          Contact the owner to discuss acquisition
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {offers.length > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 p-6 rounded-lg">
+                    <h3 className="text-lg font-semibold text-blue-900 mb-4">Active Offers ({offers.length})</h3>
+                    <ul className="space-y-2">
+                      {offers.map((offer, index) => (
+                        <li key={index} className="flex justify-between text-gray-700">
+                          <span>Offer from {offer.offererAddress.slice(0, 6)}...</span>
+                          <span className="font-bold">{offer.price} {offer.currency?.symbol || 'USD'}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
             )}
 
             <SupabaseChat 

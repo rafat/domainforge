@@ -1,6 +1,6 @@
 // src/app/api/doma/offers/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { DomaService } from '@/lib/doma'
+import { domaServerService } from '@/lib/doma.server'
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,8 +11,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Token ID is required' }, { status: 400 })
     }
 
-    const domaService = new DomaService()
-    const offers = await domaService.getOrderBookOffers(tokenId)
+    const offers = await domaServerService.getOrderBookOffers(tokenId)
     
     return NextResponse.json({ offers })
   } catch (error: any) {

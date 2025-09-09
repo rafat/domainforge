@@ -38,17 +38,43 @@ export interface DnsRecord {
   updatedAt: Date
 }
 
+export interface CurrencyModel {
+  name: string;
+  symbol: string;
+  decimals: number;
+}
+
+export type OrderbookType = 'DOMA' | 'OPENSEA';
+
 export interface DomaOffer {
-  id: string
-  domainId: string
-  buyer: string
-  amount: string
-  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED'
-  txHash?: string
-  blockNumber?: number
-  createdAt: Date
-  updatedAt: Date
-  expiry: Date
+  id: string;
+  externalId: string;
+  price: string; // BigInt in Doma.md, but represented as string in JS
+  offererAddress: string;
+  orderbook: OrderbookType;
+  currency: CurrencyModel;
+  expiresAt: Date;
+  createdAt: Date;
+  // These are from the Prisma model, might not be directly from Doma API
+  domainId?: string;
+  buyer?: string;
+  amount?: string;
+  status?: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED';
+  txHash?: string;
+  blockNumber?: number;
+  updatedAt?: Date;
+}
+
+export interface DomaListing {
+  id: string;
+  externalId: string;
+  price: string; // BigInt in Doma.md, but represented as string in JS
+  offererAddress: string;
+  orderbook: OrderbookType;
+  currency: CurrencyModel;
+  expiresAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface OwnershipHistory {

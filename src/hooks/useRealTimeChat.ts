@@ -97,7 +97,7 @@ export function useRealtimeChat(domainId: string, buyerAddress: string | null | 
     }
   }, [initializeConversation, isBrowser])
 
-  const sendMessage = async (content: string, messageType: 'text' | 'offer' = 'text') => {
+  const sendMessage = async (content: string, messageType: 'text' | 'offer' | 'system' = 'text') => {
     if (!currentUserAddress || !content.trim() || !conversationId || !isBrowser) {
         throw new Error("Cannot send message, chat not fully initialized.")
     }

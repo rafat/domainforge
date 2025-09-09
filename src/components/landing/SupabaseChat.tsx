@@ -22,14 +22,23 @@ function ChatInterface({
   isLoading,
   onSendMessage,
   currentUserAddress,
+  domainId,
+  ownerAddress,
+  isOwner,
 }: {
   messages: PrismaChatMessage[],
   isLoading: boolean,
-  onSendMessage: (content: string, type: 'text' | 'offer') => Promise<void>,
-  currentUserAddress: string
+  onSendMessage: (content: string, type: 'text' | 'offer' | 'system') => Promise<void>,
+  currentUserAddress: string,
+  domainId: string,
+  ownerAddress: string,
+  isOwner: boolean,
 }) {
   const [newMessage, setNewMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
+  const [showOfferForm, setShowOfferForm] = useState(false)
+  const [offerAmount, setOfferAmount] = useState('')
+  const [offerMessage, setOfferMessage] = useState('')
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return
@@ -37,6 +46,72 @@ function ChatInterface({
     await onSendMessage(newMessage, 'text')
     setNewMessage('')
     setIsSending(false)
+  }
+
+  const handleSendOffer = async () => {
+    if (!offerAmount || parseFloat(offerAmount) <= 0) return
+    
+    setIsSending(true)
+    try {
+      // Create offer message content
+      const offerContent = `💰 New offer: ${offerAmount} ETH${offerMessage ? `\n${offerMessage}` : ''}`
+      await onSendMessage(offerContent, 'offer')
+      
+      // Reset offer form
+      setOfferAmount('')
+      setOfferMessage('')
+      setShowOfferForm(false)
+    } catch (error) {
+      console.error('Failed to send offer:', error)
+    } finally {
+      setIsSending(false)
+    }
+  }
+
+  const handleAcceptOffer = async (messageId: string) => {
+    if (!isOwner) return
+    
+    try {
+      // Send a system message indicating the offer is being processed
+      const processingMessage = `✅ Offer accepted! Processing transaction...`
+      await onSendMessage(processingMessage, 'system')
+      
+      // In a real implementation, you would:
+      // 1. Extract offer details from the message (amount, buyer address, etc.)
+      // 2. Call Doma's API to create an actual on-chain offer
+      // 3. Update the domain ownership in the database
+      // 4. Notify both parties
+      
+      // For now, we'll simulate the process with a delay
+      setTimeout(async () => {
+        const successMessage = `🎉 Transaction completed! Domain ownership transferred.`
+        await onSendMessage(successMessage, 'system')
+      }, 3000)
+    } catch (error) {
+      console.error('Failed to accept offer:', error)
+      const errorMessage = `❌ Failed to process offer: ${error instanceof Error ? error.message : 'Unknown error'}`
+      await onSendMessage(errorMessage, 'system')
+    }
+  }
+
+  const handleRejectOffer = async (messageId: string) => {
+    if (!isOwner) return
+    
+    try {
+      // Send a system message indicating the offer has been rejected
+      const rejectMessage = `❌ Offer rejected by owner`
+      await onSendMessage(rejectMessage, 'system')
+      
+      // In a real implementation, you would:
+      // 1. Extract offer details from the message
+      // 2. Call Doma's API to reject the offer (if there's an on-chain component)
+      // 3. Update the offer status in the database
+      // 4. Notify the buyer
+    } catch (error) {
+      console.error('Failed to reject offer:', error)
+      const errorMessage = `❌ Failed to reject offer: ${error instanceof Error ? error.message : 'Unknown error'}`
+      await onSendMessage(errorMessage, 'system')
+    }
   }
 
   return (
@@ -49,34 +124,164 @@ function ChatInterface({
         ) : (
           messages.map((msg) => {
             const isOwnMessage = msg.senderAddress.toLowerCase() === currentUserAddress.toLowerCase()
+            const isOfferMessage = msg.messageType === 'offer'
+            const isSystemMessage = msg.messageType === 'system'
+            
+            // Check if this is an offer message and extract offer details
+            let offerAmount = ''
+            if (isOfferMessage) {
+              const match = msg.content.match(/💰 New offer: ([\d.]+) ETH/)
+              if (match) {
+                offerAmount = match[1]
+              }
+            }
+            
             return (
               <div key={msg.id} className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${isOwnMessage ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800'}`}>
-                  <p className="text-sm">{msg.content}</p>
-                  <p className={`text-xs mt-1 text-right ${isOwnMessage ? 'text-blue-100' : 'text-gray-500'}`}>
-                    {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </p>
+                <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                  isOwnMessage ? 'bg-blue-600 text-white' : 
+                  isOfferMessage ? 'bg-green-50 border border-green-200' : 
+                  isSystemMessage ? 'bg-blue-50 border border-blue-200' : 
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {isOfferMessage ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-green-600">💰</span>
+                        <span className={isOwnMessage ? 'text-white' : 'text-green-800'}>
+                          Offer: {offerAmount} ETH
+                        </span>
+                      </div>
+                      {msg.content.includes('') && (
+                        <p className={isOwnMessage ? 'text-white' : 'text-gray-700'}>
+                          {msg.content.split('')[1]}
+                        </p>
+                      )}
+                      {!isOwnMessage && isOwner && (
+                        <div className="flex space-x-2 pt-2">
+                          <button
+                            onClick={() => handleAcceptOffer(msg.id)}
+                            className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => handleRejectOffer(msg.id)}
+                            className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      )}
+                      <p className={`text-xs ${isOwnMessage ? 'text-blue-200' : 'text-gray-500'}`}>
+                        {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <p className={`text-sm ${isSystemMessage ? 'text-blue-800' : isOwnMessage ? 'text-white' : 'text-gray-800'}`}>
+                        {msg.content}
+                      </p>
+                      <p className={`text-xs mt-1 text-right ${isOwnMessage ? 'text-blue-200' : 'text-gray-500'}`}>
+                        {new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
             )
           })
         )}
       </div>
-      <div className="border-t p-4 flex space-x-2">
-        <textarea
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          placeholder="Type your message..."
-          className="flex-1 border rounded-lg px-3 py-2 text-sm resize-none"
-          disabled={isSending}
-        />
-        <button
-          onClick={handleSendMessage}
-          disabled={!newMessage.trim() || isSending}
-          className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
-        >
-          {isSending ? 'Sending...' : 'Send'}
-        </button>
+      
+      {/* Offer Form Modal */}
+      {showOfferForm && (
+        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Make an Offer</h3>
+              <button 
+                onClick={() => setShowOfferForm(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Offer Amount (ETH)
+                </label>
+                <input
+                  type="number"
+                  step="0.001"
+                  value={offerAmount}
+                  onChange={(e) => setOfferAmount(e.target.value)}
+                  placeholder="0.1"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Message (optional)
+                </label>
+                <textarea
+                  value={offerMessage}
+                  onChange={(e) => setOfferMessage(e.target.value)}
+                  placeholder="Add a note with your offer..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-20 resize-none"
+                />
+              </div>
+              
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setShowOfferForm(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSendOffer}
+                  disabled={!offerAmount || parseFloat(offerAmount) <= 0 || isSending}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                >
+                  {isSending ? 'Sending...' : 'Send Offer'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <div className="border-t p-4 space-y-3">
+        {!isOwner && (
+          <button
+            onClick={() => setShowOfferForm(true)}
+            className="w-full flex items-center justify-center space-x-2 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700"
+          >
+            <span>💰</span>
+            <span>Make an Offer</span>
+          </button>
+        )}
+        
+        <div className="flex space-x-2">
+          <textarea
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder="Type your message..."
+            className="flex-1 border rounded-lg px-3 py-2 text-sm resize-none"
+            disabled={isSending}
+          />
+          <button
+            onClick={handleSendMessage}
+            disabled={!newMessage.trim() || isSending}
+            className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          >
+            {isSending ? 'Sending...' : 'Send'}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -115,7 +320,17 @@ export function SupabaseChat({ domainId, ownerAddress, domainName }: SupabaseCha
   // The buyer only needs to manage one conversation: their own.
   function BuyerView() {
     const { messages, isLoading, sendMessage } = useRealtimeChat(domainId, currentUserAddress, ownerAddress)
-    return <ChatInterface messages={messages} isLoading={isLoading} onSendMessage={sendMessage} currentUserAddress={currentUserAddress!} />
+    return (
+      <ChatInterface 
+        messages={messages} 
+        isLoading={isLoading} 
+        onSendMessage={sendMessage} 
+        currentUserAddress={currentUserAddress!}
+        domainId={domainId}
+        ownerAddress={ownerAddress}
+        isOwner={false}
+      />
+    )
   }
 
   // --- OWNER'S VIEW LOGIC ---
@@ -147,7 +362,15 @@ export function SupabaseChat({ domainId, ownerAddress, domainName }: SupabaseCha
         </div>
         <div className="w-2/3">
           {selectedConvo ? (
-            <ChatInterface messages={messages} isLoading={isLoading} onSendMessage={sendMessage} currentUserAddress={currentUserAddress!} />
+            <ChatInterface 
+              messages={messages} 
+              isLoading={isLoading} 
+              onSendMessage={sendMessage} 
+              currentUserAddress={currentUserAddress!}
+              domainId={domainId}
+              ownerAddress={ownerAddress}
+              isOwner={true}
+            />
           ) : (
             <div className="h-full flex items-center justify-center">
               <p className="text-gray-500">Select a conversation to view.</p>
