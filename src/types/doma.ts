@@ -1,8 +1,8 @@
-// src/types/doma.ts
 export interface DomaDomain {
   id: string
   name: string
   tokenId: string
+  tokenAddress: string
   owner: string
   contractAddress: string
   chainId: number

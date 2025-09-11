@@ -35,11 +35,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // With the Doma Orderbook SDK, listing creation is now handled client-side
+    // This endpoint is kept for backward compatibility but will return a deprecation message
+    console.warn('Deprecated: Server-side listing creation is no longer recommended. Use the Doma Orderbook SDK client-side instead.');
+    
     const newListing = await domaServerService.createListing(parameters, signature)
     
     return NextResponse.json({
       listing: newListing,
-      message: 'Domain listed successfully'
+      message: 'Domain listed successfully (server-side, deprecated approach)'
     })
   } catch (error: any) {
     console.error('Error creating listing:', error)

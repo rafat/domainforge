@@ -7,6 +7,10 @@ import { useDomainData } from '@/hooks/useDomainData'
 import { TemplateSelector } from './TemplateSelector'
 import { PreviewPanel } from './PreviewPanel'
 import { DomaDomain } from '@/types/doma'
+import { useWalletClient, useSignTypedData } from 'wagmi'
+import { createSeaportOrderParameters, createSeaportEip712Types } from '@/lib/seaportUtils'
+import { domaApi } from '@/lib/domaApi'
+import { createDomaListing } from '@/lib/domaOrderbookSdk'
 
 interface PageEditorProps {
   domainId?: string
@@ -37,7 +41,7 @@ interface FormData {
 
 export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps) {
   const router = useRouter()
-  const [domain, setDomain] = useState<DomaDomain | null>(initialDomain || null)
+  const { domain, updateDomain } = useDomainData(domainId || '', initialDomain || undefined)
   const [formData, setFormData] = useState<FormData>({
     title: initialDomain?.title || domain?.title || '',
     description: initialDomain?.description || domain?.description || '',
@@ -63,55 +67,9 @@ export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps)
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
 
-  // Load customization from domain if it exists
-  useEffect(() => {
-    const domainToUse = domain || initialDomain
-    if (domainToUse?.customCSS) {
-      try {
-        const savedCustomization = JSON.parse(domainToUse.customCSS)
-        setCustomization(savedCustomization)
-      } catch (e) {
-        console.warn('Failed to parse customization data')
-      }
-    }
-  }, [domain, initialDomain])
-
-  const updateDomain = async (domainName: string, updates: any) => {
-    try {
-      console.log('Updating domain:', domainName, updates);
-      // Use the domains API with name filter to find and update the domain
-      const response = await fetch(`/api/domains?name=${domainName}`, {
-        method: 'GET'
-      })
-      
-      if (!response.ok) throw new Error('Failed to fetch domain')
-      
-      const data = await response.json()
-      console.log('Fetch domain response:', data);
-      if (!data.domains || data.domains.length === 0) {
-        throw new Error('Domain not found')
-      }
-      
-      const domainToUpdate = data.domains[0]
-      console.log('Domain to update:', domainToUpdate);
-      
-      // Update the domain using the tokenId endpoint with PUT method
-      const updateResponse = await fetch(`/api/domains/${domainToUpdate.tokenId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
-      })
-      
-      if (!updateResponse.ok) throw new Error('Failed to update domain')
-      
-      const updatedDomain = await updateResponse.json()
-      console.log('Updated domain response:', updatedDomain);
-      setDomain(updatedDomain.domain)
-      return updatedDomain.domain
-    } catch (err) {
-      throw new Error(err instanceof Error ? err.message : 'Update failed')
-    }
-  }
+  // Wallet hooks
+  const { data: walletClient } = useWalletClient()
+  const { signTypedDataAsync } = useSignTypedData()
 
   const handlePublish = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -122,28 +80,243 @@ export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps)
       // If onSave callback is provided, use it (for new domains)
       if (onSave) {
         console.log('Using onSave callback');
-        onSave({
+        // Save the domain data first
+        const saveResult: any = await onSave({
           ...formData,
           isActive: true,
           forSale: true, // Set forSale to true when publishing
           customCSS: JSON.stringify(customization)
         })
+        
+        // Extract the domain from the save result
+        const savedDomain = saveResult?.domain || saveResult;
+        
+        // If we have a buyNowPrice and wallet client, create a listing
+        if (formData.buyNowPrice && walletClient && savedDomain?.tokenId) {
+          console.log('Debug - Connected wallet:', walletClient.account.address);
+          console.log('Debug - Domain owner:', savedDomain.owner);
+          
+          // Check if the connected wallet is the owner of the domain
+          if (walletClient.account.address.toLowerCase() !== savedDomain.owner.toLowerCase()) {
+            alert(`You must be the owner of this domain to list it for sale. Connected wallet: ${walletClient.account.address}, Domain owner: ${savedDomain.owner}`)
+            setPublishing(false)
+            return
+          }
+          
+          try {
+            // Get the contract address from the domain data
+            // For blockchain domains, this will be in the tokens array
+            // For database domains, this will be in the contractAddress field
+            let contractAddress = "0x424bDf2E8a6F52Bd2c1C81D9437b0DC0309DF90f"; // Doma testnet ownership token address
+            
+            console.log('Using contract address:', contractAddress);
+            
+            // Fetch fees from our proxy
+            const feesResponse = await fetch('/api/doma/fees', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contractAddress,
+                chainId: 'eip155:97476', // Doma testnet
+                orderbook: 'DOMA',
+              }),
+            });
+
+            if (!feesResponse.ok) {
+              const errorData = await feesResponse.json();
+              throw new Error(`Failed to fetch fees: ${errorData.details?.message || 'Unknown error'}`);
+            }
+
+            const fees = await feesResponse.json();
+            console.log('Fetched fees via proxy:', fees);
+
+            // Fetch supported currencies
+            const currenciesResponse = await fetch('/api/doma/currencies', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contractAddress,
+                chainId: 'eip155:97476', // Doma testnet
+                orderbook: 'DOMA',
+              }),
+            });
+
+            let currency;
+            if (currenciesResponse.ok) {
+              const currenciesData = await currenciesResponse.json();
+              console.log('Fetched currencies via proxy:', currenciesData);
+              // Use the first currency (ETH) if available
+              if (currenciesData.currencies && currenciesData.currencies.length > 0) {
+                currency = currenciesData.currencies.find((c: any) => c.symbol === 'ETH') || currenciesData.currencies[0];
+              }
+            } else {
+              console.warn('Failed to fetch currencies, using default ETH');
+              // Default to ETH if we can't fetch currencies
+              // For native ETH on most chains, we should not include currencyContractAddress
+              // or use the correct contract address if required by Doma API
+              currency = {
+                contractAddress: "0x0000000000000000000000000000000000000000", // Native ETH contract address
+                symbol: "ETH",
+                decimals: 18
+              };
+            }
+
+            // Create listing using Doma Orderbook SDK
+            const listingResult = await createDomaListing(
+              {
+                contractAddress: contractAddress,
+                tokenId: savedDomain.tokenId,
+                price: formData.buyNowPrice,
+                sellerAddress: savedDomain.owner,
+              },
+              walletClient,
+              'eip155:97476',
+              fees.marketplaceFees,
+              currency
+            );
+            
+            console.log('Domain listed successfully with Doma SDK!', listingResult);
+          } catch (listingError) {
+            console.error('Failed to list domain with Doma SDK:', listingError);
+            // Let's get more detailed error information
+            if (listingError instanceof Error) {
+              console.error('Error details:', listingError.message);
+              if ((listingError as any).info) {
+                console.error('Error info:', (listingError as any).info);
+              }
+              if ((listingError as any).status) {
+                console.error('Error status:', (listingError as any).status);
+              }
+            }
+            alert(`Domain published but failed to list: ${listingError instanceof Error ? listingError.message : 'Unknown error'}`);
+          }
+        }
+        
         return
       }
       
       // Otherwise, update existing domain using domain name
       console.log('Updating existing domain');
-      if (!domain?.name) {
-        throw new Error('Domain name is required')
+      if (!domain?.tokenId) {
+        throw new Error('Domain tokenId is required')
       }
       
-      const updatedDomain = await updateDomain(domain.name, { 
+      const updatedDomain = await updateDomain(domain.tokenId, { 
         ...formData, 
         isActive: true,
         forSale: true,
         customCSS: JSON.stringify(customization)
       })
       console.log('Domain updated, updatedDomain:', updatedDomain);
+      
+      // If we have a buyNowPrice and wallet client, create a listing
+      if (formData.buyNowPrice && walletClient && updatedDomain?.tokenId) {
+        console.log('Debug - Connected wallet:', walletClient.account.address);
+        console.log('Debug - Domain owner:', updatedDomain.owner);
+        
+        // Check if the connected wallet is the owner of the domain
+        if (walletClient.account.address.toLowerCase() !== updatedDomain.owner.toLowerCase()) {
+          alert(`You must be the owner of this domain to list it for sale. Connected wallet: ${walletClient.account.address}, Domain owner: ${updatedDomain.owner}`)
+          setPublishing(false)
+          return
+        }
+        
+        try {
+          // Get the contract address from the domain data
+          // For blockchain domains, this will be in the tokens array
+          // For database domains, this will be in the contractAddress field
+          let contractAddress = "0x424bDf2E8a6F52Bd2c1C81D9437b0DC0309DF90f"; // Doma testnet ownership token address
+          
+          if (updatedDomain.contractAddress) {
+            // Database domain
+            contractAddress = updatedDomain.contractAddress;
+          } else if (updatedDomain.tokenAddress) {
+            // Blockchain domain
+            contractAddress = updatedDomain.tokenAddress;
+          }
+          
+          console.log('Using contract address:', contractAddress);
+          
+          // Fetch fees from our proxy
+          const feesResponse = await fetch('/api/doma/fees', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contractAddress,
+              chainId: 'eip155:97476', // Doma testnet
+              orderbook: 'DOMA',
+            }),
+          });
+
+          if (!feesResponse.ok) {
+            const errorData = await feesResponse.json();
+            throw new Error(`Failed to fetch fees: ${errorData.details?.message || 'Unknown error'}`);
+          }
+
+          const fees = await feesResponse.json();
+          console.log('Fetched fees via proxy:', fees);
+
+          // Fetch supported currencies
+          const currenciesResponse = await fetch('/api/doma/currencies', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contractAddress,
+              chainId: 'eip155:97476', // Doma testnet
+              orderbook: 'DOMA',
+            }),
+          });
+
+          let currency;
+          if (currenciesResponse.ok) {
+            const currenciesData = await currenciesResponse.json();
+            console.log('Fetched currencies via proxy:', currenciesData);
+            // Use the first currency (ETH) if available
+            if (currenciesData.currencies && currenciesData.currencies.length > 0) {
+              currency = currenciesData.currencies.find((c: any) => c.symbol === 'ETH') || currenciesData.currencies[0];
+            }
+          } else {
+            console.warn('Failed to fetch currencies, using default ETH');
+            // Default to ETH if we can't fetch currencies
+            // For native ETH on most chains, we should not include currencyContractAddress
+            // or use the correct contract address if required by Doma API
+            currency = {
+              contractAddress: "0x0000000000000000000000000000000000000000", // Native ETH contract address
+              symbol: "ETH",
+              decimals: 18
+            };
+          }
+
+          // Create listing using Doma Orderbook SDK
+          const listingResult = await createDomaListing(
+            {
+              contractAddress: contractAddress,
+              tokenId: updatedDomain.tokenId,
+              price: formData.buyNowPrice,
+              sellerAddress: updatedDomain.owner,
+            },
+            walletClient,
+            'eip155:97476',
+            fees.marketplaceFees,
+            currency
+          );
+          
+          console.log('Domain listed successfully with Doma SDK!', listingResult);
+        } catch (listingError) {
+          console.error('Failed to list domain with Doma SDK:', listingError);
+          // Let's get more detailed error information
+          if (listingError instanceof Error) {
+            console.error('Error details:', listingError.message);
+            if ((listingError as any).info) {
+              console.error('Error info:', (listingError as any).info);
+            }
+            if ((listingError as any).status) {
+              console.error('Error status:', (listingError as any).status);
+            }
+          }
+          alert(`Domain published but failed to list: ${listingError instanceof Error ? listingError.message : 'Unknown error'}`);
+        }
+      }
       
       // Redirect to the landing page after successful publication
       if (updatedDomain?.name) {
@@ -161,8 +334,6 @@ export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps)
       setPublishing(false)
     }
   }
-
-  
 
   const fontOptions = [
     { id: 'sans-serif', name: 'Sans Serif' },
@@ -580,7 +751,7 @@ export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps)
           
           {domain?.isActive && domainId && !onSave && domain && (
             <div className="text-center text-sm text-green-600 bg-green-50 p-2 rounded">
-              ✅ Page is published! Visit: /landing/{domain.name}
+              {`✅ Page is published! Visit: /landing/${domain.name}`}
             </div>
           )}
         </div>

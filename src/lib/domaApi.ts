@@ -6,16 +6,35 @@
 import { DomaOffer } from '@/types/doma';
 
 async function fetcher(url: string, options?: RequestInit) {
+  console.log(`Fetching ${url} with options:`, JSON.stringify(options, null, 2));
   const res = await fetch(url, options);
+  console.log(`Response status: ${res.status}`);
+  console.log(`Response status text: ${res.statusText}`);
+  
   if (!res.ok) {
     const error = new Error('An error occurred while fetching the data.');
     // Attach extra info to the error object.
-    const info = await res.json();
-    (error as any).info = info;
+    try {
+      const info = await res.json();
+      (error as any).info = info;
+      console.log('Error info:', JSON.stringify(info, null, 2));
+    } catch (e) {
+      // If we can't parse the response as JSON, use the text instead
+      try {
+        (error as any).info = { message: await res.text() };
+        console.log('Error text:', (error as any).info.message);
+      } catch (e2) {
+        (error as any).info = { message: 'Unknown error' };
+        console.log('Unknown error');
+      }
+    }
     (error as any).status = res.status;
     throw error;
   }
-  return res.json();
+  
+  const data = await res.json();
+  console.log('Response data:', JSON.stringify(data, null, 2));
+  return data;
 }
 
 export const domaApi = {
@@ -26,7 +45,9 @@ export const domaApi = {
   async createListing(parameters: any, signature: string) {
     return fetcher('/api/doma/listings', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ parameters, signature }),
     });
   },
@@ -55,4 +76,20 @@ export const domaApi = {
   async getListingFulfillmentData(listingId: string, buyerAddress: string) {
     return fetcher(`/api/doma/listings/${listingId}/fulfillment?buyerAddress=${buyerAddress}`);
   },
+  
+  // New methods for Doma Orderbook SDK integration
+  async createListingWithSdk(params: {
+    contractAddress: string;
+    tokenId: string;
+    price: string;
+    sellerAddress: string;
+  }) {
+    return fetcher('/api/doma/listings/sdk-demo', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(params),
+    });
+  }
 };

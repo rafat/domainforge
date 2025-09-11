@@ -1,3 +1,4 @@
+import { domaTestnet } from '@/lib/chains';
 // src/app/api/domains/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
@@ -166,8 +167,8 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         owner,
-        contractAddress: '0x0000000000000000000000000000000000000000', // placeholder
-        chainId: 1, // default to mainnet
+        contractAddress: process.env.NEXT_PUBLIC_OWNERSHIP_TOKEN_ADDRESS || '0x424bDf2E8a6F52Bd2c1C81D9437b0DC0309DF90f',
+        chainId: domaTestnet.id, // default to mainnet
         registrationDate: now,
         expiry: expiryDate,
         price: price ? parseFloat(price) : null,

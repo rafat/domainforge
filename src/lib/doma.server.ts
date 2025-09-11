@@ -3,20 +3,38 @@
 // It contains the Doma API client and service that use the secret API key.
 
 import { parseEther } from 'viem'
-import { DomaOffer, OwnershipHistory } from '@/types/doma'
+import { DomaOffer, OwnershipHistory } from '../types/doma'
+import { createSeaportOrderParameters } from './seaportUtils'
+import { domaTestnet } from './chains'
 import { 
   PollEventsResponse, 
   AcknowledgeEventResponse, 
   ResetPollingResponse,
   DomaEventType
-} from '@/types/domaEvents'
+} from '../types/domaEvents'
 import { domaCache } from './cache'
+import { 
+  createDomaOrderbookClient, 
+  OrderbookType 
+} from '@doma-protocol/orderbook-sdk';
 
 // Get API endpoints from environment variables
 const DOMA_SUBGRAPH_URL = process.env.NEXT_PUBLIC_DOMA_SUBGRAPH_URL || 'https://api-testnet.doma.xyz/graphql'
 const DOMA_API_URL = process.env.NEXT_PUBLIC_DOMA_API_URL || 'https://api-testnet.doma.xyz'
 // IMPORTANT: This is a secret and should only be used on the server.
-const DOMA_API_KEY = process.env.DOMA_API_KEY;
+const DOMA_API_KEY = process.env.DOMA_API_KEY || process.env.NEXT_PUBLIC_DOMA_API_KEY;
+
+// Initialize the Doma Orderbook SDK client
+const domaOrderbookClient = createDomaOrderbookClient({
+  source: 'domainforge',
+  chains: [domaTestnet], // Use Doma testnet chain
+  apiClientOptions: {
+    baseUrl: DOMA_API_URL,
+    defaultHeaders: {
+      'Api-Key': DOMA_API_KEY || '',
+    },
+  },
+});
 
 if (!DOMA_API_KEY) {
   console.warn('DOMA_API_KEY is not set. Doma API calls will likely fail.');
@@ -78,6 +96,8 @@ class DomaApiClient {
 
   private async restRequest(endpoint: string, options: RequestInit = {}) {
     const url = `${this.apiUrl}${endpoint}`
+    console.log(`Making request to ${url}`);
+    console.log('Request options:', JSON.stringify(options, null, 2));
     
     const defaultHeaders = {
       'Content-Type': 'application/json',
@@ -92,11 +112,18 @@ class DomaApiClient {
       }
     })
     
+    console.log(`Response status: ${response.status}`);
+    console.log(`Response status text: ${response.statusText}`);
+    
     if (!response.ok) {
-      throw new Error(`API error: ${response.statusText}`)
+      const errorText = await response.text();
+      console.error(`API error response: ${errorText}`);
+      throw new Error(`API error: ${response.statusText} - ${errorText}`)
     }
     
-    return await response.json()
+    const responseData = await response.json();
+    console.log('Response data:', JSON.stringify(responseData, null, 2));
+    return responseData;
   }
 
   async getToken(tokenId: string, useCache: boolean = false) {
@@ -229,6 +256,7 @@ class DomaApiClient {
   }
 
   async createListing(listingData: any) {
+    console.log('domaApiClient.createListing called with:', JSON.stringify(listingData, null, 2));
     return this.restRequest('/v1/orderbook/list', {
       method: 'POST',
       body: JSON.stringify(listingData),
@@ -337,17 +365,85 @@ export class DomaService {
 
   async createListing(parameters: any, signature: string) {
     try {
+      // Log the incoming parameters for debugging
+      console.log('Server - Received parameters for listing creation:', JSON.stringify(parameters, null, 2));
+      console.log('Server - Received signature:', signature);
+      
+      // For domain listings, we need to create a proper Seaport order structure
+      // But we should use the parameters that were actually signed by the frontend
+      // If the frontend already sent properly structured Seaport parameters, use them directly
+      // Otherwise, create them using our shared utility
+      
+      let orderParameters;
+      
+      // Check if the parameters already contain a full Seaport order structure
+      if (parameters.offerer && parameters.offer && parameters.consideration) {
+        // Use the parameters directly as they're already a Seaport order structure
+        orderParameters = parameters;
+      } else {
+        // Create a proper Seaport order structure using shared utility
+        // Pass through the startTime and endTime from the client to ensure consistency
+        const seaportParams: any = {
+          sellerAddress: parameters.sellerAddress,
+          contractAddress: parameters.contractAddress,
+          tokenId: parameters.tokenId,
+          price: parameters.price
+        };
+        
+        // If client provided timestamps, use them
+        if (parameters.startTime && parameters.endTime) {
+          seaportParams.startTime = parameters.startTime;
+          seaportParams.endTime = parameters.endTime;
+        }
+        
+        orderParameters = createSeaportOrderParameters(seaportParams);
+      }
+      
       const listingData = {
         orderbook: 'DOMA',
-        chainId: 'eip155:97476',
-        parameters: parameters,
+        chainId: parameters.chainId || 'eip155:97476',
+        parameters: orderParameters,
         signature: signature,
       };
 
+      console.log('Server - Sending listingData to Doma API:', JSON.stringify(listingData, null, 2));
+      
       const response = await domaApiClient.createListing(listingData);
+      console.log('Server - Received response from Doma API:', JSON.stringify(response, null, 2));
       return response;
     } catch (error: any) {
-      throw new Error(`Failed to create listing: ${error.message}`);
+      console.error('Server - Error in createListing:', error);
+      // Let's provide more detailed error information
+      throw new Error(`Failed to create listing: ${error.message || 'Unknown error'}`);
+    }
+  }
+
+  async createListingWithSdk(params: {
+    contractAddress: string;
+    tokenId: string;
+    price: string; // in ETH
+    sellerAddress: string;
+  }) {
+    try {
+      // Convert price to wei
+      const priceInWei = parseEther(params.price).toString();
+      
+      // Create listing using Doma SDK directly on the server
+      // Note: This would typically be done on the client side with a signer
+      // For server-side operations, we might need to use a different approach
+      // This is a placeholder for future implementation
+      console.log('Creating listing with Doma SDK:', params);
+      
+      // For now, we'll return a mock response
+      // In a real implementation, you would use the SDK with a server-side signer
+      return {
+        success: true,
+        message: 'Listing created successfully (mock)',
+        orderId: 'mock-order-id'
+      };
+    } catch (error: any) {
+      console.error('Server - Error in createListingWithSdk:', error);
+      throw new Error(`Failed to create listing with SDK: ${error.message || 'Unknown error'}`);
     }
   }
 

@@ -83,6 +83,7 @@ export default function NewBuilderPage() {
         id: `temp-${actualTokenId}`,
         name: domainName,
         tokenId: actualTokenId,
+        tokenAddress: '', // Add the missing tokenAddress property
         owner: address || '',
         contractAddress: '',
         chainId: 97476, // Doma testnet
