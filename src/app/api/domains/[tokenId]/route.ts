@@ -52,6 +52,7 @@ export async function PUT(
 
   try {
     const body = await request.json()
+    console.log('PUT request body:', body);
     const { price, forSale, records, isActive, title, description, template, buyNowPrice, acceptOffers, customCSS } = body
 
     const updateData: any = {}
@@ -66,6 +67,9 @@ export async function PUT(
     if (acceptOffers !== undefined) updateData.acceptOffers = acceptOffers
     if (customCSS !== undefined) updateData.customCSS = customCSS
 
+    console.log('updateData:', updateData);
+    console.log('tokenId:', tokenId);
+
     const domain = await prisma.domain.update({
       where: { tokenId },
       data: updateData,
@@ -74,6 +78,8 @@ export async function PUT(
         offers: true
       }
     })
+
+    console.log('Updated domain:', domain);
 
     // Update DNS records if provided
     if (records && Array.isArray(records)) {

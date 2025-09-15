@@ -43,11 +43,11 @@ export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps)
   const router = useRouter()
   const { domain, updateDomain } = useDomainData(domainId || '', initialDomain || undefined)
   const [formData, setFormData] = useState<FormData>({
-    title: initialDomain?.title || domain?.title || '',
-    description: initialDomain?.description || domain?.description || '',
-    template: initialDomain?.template || domain?.template || 'minimal',
-    buyNowPrice: initialDomain?.buyNowPrice || domain?.buyNowPrice || '',
-    acceptOffers: initialDomain?.acceptOffers !== undefined ? initialDomain.acceptOffers : (domain?.acceptOffers !== undefined ? domain?.acceptOffers : true)
+    title: initialDomain?.title || '',
+    description: initialDomain?.description || '',
+    template: initialDomain?.template || 'minimal',
+    buyNowPrice: initialDomain?.buyNowPrice || '',
+    acceptOffers: initialDomain?.acceptOffers !== undefined ? initialDomain.acceptOffers : true
   })
   
   const [customization, setCustomization] = useState<CustomizationOptions>({
@@ -62,6 +62,32 @@ export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps)
     layoutSpacing: 'normal',
     textAlign: 'center'
   })
+  
+  // Update formData when domain data loads
+  useEffect(() => {
+    if (domain) {
+      setFormData({
+        title: domain.title || '',
+        description: domain.description || '',
+        template: domain.template || 'minimal',
+        buyNowPrice: domain.buyNowPrice || '',
+        acceptOffers: domain.acceptOffers !== undefined ? domain.acceptOffers : true
+      });
+    }
+  }, [domain]);
+  
+  // Update formData when initialDomain changes
+  useEffect(() => {
+    if (initialDomain) {
+      setFormData({
+        title: initialDomain.title || '',
+        description: initialDomain.description || '',
+        template: initialDomain.template || 'minimal',
+        buyNowPrice: initialDomain.buyNowPrice || '',
+        acceptOffers: initialDomain.acceptOffers !== undefined ? initialDomain.acceptOffers : true
+      });
+    }
+  }, [initialDomain]);
   
   const [activeTab, setActiveTab] = useState<'content' | 'design' | 'settings'>('content')
   const [saving, setSaving] = useState(false)
@@ -197,6 +223,9 @@ export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps)
       
       // Otherwise, update existing domain using domain name
       console.log('Updating existing domain');
+      console.log('formData:', formData);
+      console.log('customization:', customization);
+      console.log('domain:', domain);
       if (!domain?.tokenId) {
         throw new Error('Domain tokenId is required')
       }
@@ -410,7 +439,10 @@ export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps)
           <div className="space-y-6">
             <TemplateSelector 
               selected={formData.template}
-              onChange={(template) => setFormData({...formData, template})}
+              onChange={(template) => {
+                console.log('Template changed to:', template);
+                setFormData({...formData, template});
+              }}
             />
             
             <div className="space-y-4">
@@ -421,7 +453,10 @@ export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps)
                 <input
                   type="text"
                   value={formData.title}
-                  onChange={(e) => setFormData({...formData, title: e.target.value})}
+                  onChange={(e) => {
+                    console.log('Title changed to:', e.target.value);
+                    setFormData({...formData, title: e.target.value});
+                  }}
                   className="w-full p-3 border rounded-lg"
                   placeholder="Premium Domain For Sale"
                 />
@@ -433,7 +468,10 @@ export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps)
                 </label>
                 <textarea
                   value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  onChange={(e) => {
+                    console.log('Description changed to:', e.target.value);
+                    setFormData({...formData, description: e.target.value});
+                  }}
                   className="w-full p-3 border rounded-lg h-32"
                   placeholder="Describe your domain's value..."
                 />
@@ -447,7 +485,10 @@ export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps)
                   type="number"
                   step="0.001"
                   value={formData.buyNowPrice}
-                  onChange={(e) => setFormData({...formData, buyNowPrice: e.target.value})}
+                  onChange={(e) => {
+                    console.log('Buy Now Price changed to:', e.target.value);
+                    setFormData({...formData, buyNowPrice: e.target.value});
+                  }}
                   className="w-full p-3 border rounded-lg"
                 />
               </div>
@@ -705,7 +746,10 @@ export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps)
                   <input
                     type="checkbox"
                     checked={formData.acceptOffers}
-                    onChange={(e) => setFormData({...formData, acceptOffers: e.target.checked})}
+                    onChange={(e) => {
+                      console.log('Accept Offers changed to:', e.target.checked);
+                      setFormData({...formData, acceptOffers: e.target.checked});
+                    }}
                     className="sr-only peer"
                   />
                   <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>

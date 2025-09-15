@@ -5,7 +5,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import { useWallet } from '@/hooks/useWallet'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import { DomaDomain as Domain } from '@/types/doma'
@@ -19,7 +18,7 @@ import {
   ElegantTemplate, 
   TechTemplate, 
   CustomizationProps
-} from '@/components/landing/templates';
+} from '@/components/landing/templates'
 
 export default function LandingPage() {
   const { domainName } = useParams()
@@ -56,11 +55,28 @@ export default function LandingPage() {
     }
   }, [domainName])
 
+  // Sync domain with blockchain when page loads
+  const syncDomainWithBlockchain = useCallback(async (tokenId: string) => {
+    try {
+      // Trigger synchronization with blockchain
+      await fetch(`/api/doma/sync/${tokenId}`)
+    } catch (error) {
+      console.error('Failed to sync domain with blockchain:', error)
+    }
+  }, [])
+
   useEffect(() => {
     if (domainName) {
       fetchDomainData()
     }
   }, [domainName, fetchDomainData])
+
+  // Trigger blockchain sync when domain data is loaded
+  useEffect(() => {
+    if (domain && domain.tokenId) {
+      syncDomainWithBlockchain(domain.tokenId)
+    }
+  }, [domain, syncDomainWithBlockchain])
 
   // Render template based on domain data
   const renderDomainTemplate = () => {

@@ -42,21 +42,26 @@ export function useDomainData(domainId: string, initialDomain?: Domain) {
     }
   }
 
-  const updateDomain = async (id: string, updates: Partial<Domain>) => {
+  const updateDomain = async (tokenId: string, updates: Partial<Domain>) => {
     try {
+      console.log('updateDomain called with tokenId:', tokenId);
+      console.log('updateDomain called with updates:', updates);
       // Use the tokenId endpoint since that's what's being passed from PageEditor
-      const response = await fetch(`/api/domain/${id}`, {
-        method: 'PATCH',
+      const response = await fetch(`/api/domains/${tokenId}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates)
       })
       
+      console.log('API response status:', response.status);
       if (!response.ok) throw new Error('Failed to update domain')
       
       const updatedDomain = await response.json()
-      setDomain(updatedDomain)
-      return updatedDomain
+      console.log('API response data:', updatedDomain);
+      setDomain(updatedDomain.domain)
+      return updatedDomain.domain
     } catch (err) {
+      console.error('updateDomain error:', err);
       throw new Error(err instanceof Error ? err.message : 'Update failed')
     }
   }

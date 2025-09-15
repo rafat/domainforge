@@ -31,7 +31,7 @@ export default function BuilderPage() {
 
     try {
       setLoading(true)
-      const response = await fetch(`/api/domain/${domainId}`)
+      const response = await fetch(`/api/domains/${domainId}`)
       
       if (!response.ok) {
         throw new Error('Domain not found')
