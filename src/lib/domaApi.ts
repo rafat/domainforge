@@ -39,7 +39,29 @@ async function fetcher(url: string, options?: RequestInit) {
 
 export const domaApi = {
   async getListings(tokenId: string) {
-    return fetcher(`/api/doma/listings?tokenId=${tokenId}`);
+    console.log('Fetching listings for tokenId:', tokenId);
+    try {
+      const result = await fetcher(`/api/doma/listings?tokenId=${tokenId}`);
+      console.log('Listings result:', result);
+      console.log('Listings result type:', typeof result);
+      if (result && typeof result === 'object') {
+        console.log('Listings result keys:', Object.keys(result));
+      }
+      // Handle different possible data structures
+      if (Array.isArray(result)) {
+        return result;
+      } else if (result && typeof result === 'object') {
+        if (Array.isArray(result.listings)) {
+          return result.listings;
+        } else if (Array.isArray(result.items)) {
+          return result.items;
+        }
+      }
+      return [];
+    } catch (error) {
+      console.error('Error fetching listings:', error);
+      throw error;
+    }
   },
 
   async createListing(parameters: any, signature: string) {
@@ -69,8 +91,15 @@ export const domaApi = {
   },
 
   async getOffers(tokenId: string): Promise<DomaOffer[]> {
-    const data = await fetcher(`/api/doma/offers?tokenId=${tokenId}`);
-    return data.offers || [];
+    console.log('Fetching offers for tokenId:', tokenId);
+    try {
+      const data = await fetcher(`/api/doma/offers?tokenId=${tokenId}`);
+      console.log('Offers data:', data);
+      return data.offers || [];
+    } catch (error) {
+      console.error('Error fetching offers:', error);
+      throw error;
+    }
   },
 
   async getListingFulfillmentData(listingId: string, buyerAddress: string) {

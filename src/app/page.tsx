@@ -12,7 +12,6 @@ import { useWallet } from '@/hooks/useWallet'
 
 export default function HomePage() {
   const { isConnected } = useWallet()
-  const [featuredDomains, setFeaturedDomains] = useState<DomainNFT[]>([])
   const [recentDomains, setRecentDomains] = useState<DomainNFT[]>([])
   const [loading, setLoading] = useState(true)
   const [debugAddress, setDebugAddress] = useState<string | undefined>()
@@ -38,7 +37,6 @@ export default function HomePage() {
       const domainsData = await domainsRes.json()
       const statsData = await statsRes.json()
       
-      setFeaturedDomains(domainsData.slice(0, 4))
       setRecentDomains(domainsData.slice(4, 8))
       setStats(statsData)
     } catch (error) {
@@ -110,12 +108,6 @@ export default function HomePage() {
               >
                 Explore Marketplace
               </Link>
-              <Link
-                href="/mint"
-                className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold text-lg hover:bg-white hover:text-blue-600 transition-colors"
-              >
-                Mint Domain
-              </Link>
             </div>
           </div>
         </div>
@@ -123,92 +115,6 @@ export default function HomePage() {
 
       {/* User Domains Section - Shows when wallet is connected */}
       <BlockchainUserDomainsSection debugAddress={debugAddress} />
-
-      {/* Stats Section */}
-      <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-                {stats.totalDomains.toLocaleString()}
-              </div>
-              <div className="text-gray-600">Total Domains</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-                {stats.totalSales.toLocaleString()}
-              </div>
-              <div className="text-gray-600">Total Sales</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-                {stats.averagePrice.toFixed(2)} ETH
-              </div>
-              <div className="text-gray-600">Average Price</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-                {stats.activeUsers.toLocaleString()}
-              </div>
-              <div className="text-gray-600">Active Users</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Domains */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Featured Domains
-            </h2>
-            <p className="text-xl text-gray-600">
-              Discover premium domains available in our marketplace
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {featuredDomains.map((domain) => (
-              <DomainCard
-                key={domain.tokenId}
-                domain={domain}
-                onQuickOffer={handleQuickOffer}
-              />
-            ))}
-          </div>
-          <div className="text-center">
-            <Link
-              href="/marketplace"
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-            >
-              View All Domains
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Recent Activity */}
-      <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Recent Activity
-            </h2>
-            <p className="text-xl text-gray-600">
-              Latest domains added to the marketplace
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {recentDomains.map((domain) => (
-              <DomainCard
-                key={domain.tokenId}
-                domain={domain}
-                onQuickOffer={handleQuickOffer}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* How It Works */}
       <section className="py-16 bg-gray-50">
@@ -230,7 +136,7 @@ export default function HomePage() {
                 Connect Wallet
               </h3>
               <p className="text-gray-600">
-                Connect your Web3 wallet to start buying, selling, or minting domains.
+                Connect your Web3 wallet to start buying or selling domains.
               </p>
             </div>
             <div className="text-center">
@@ -268,12 +174,6 @@ export default function HomePage() {
             Join thousands of users who have already secured their digital identity with DOMA.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/mint"
-              className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold text-lg hover:bg-gray-100 transition-colors"
-            >
-              Mint Your Domain
-            </Link>
             <Link
               href="/marketplace"
               className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold text-lg hover:bg-white hover:text-blue-600 transition-colors"

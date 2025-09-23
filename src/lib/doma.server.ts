@@ -61,9 +61,14 @@ class DomaApiClient {
     if (useCache) {
       const cached = domaCache.get(key);
       if (cached) {
+        console.log('Returning cached data for key:', key);
         return cached;
       }
     }
+    
+    console.log('Making GraphQL request to:', this.subgraphUrl);
+    console.log('Query:', query);
+    console.log('Variables:', variables);
     
     const response = await fetch(this.subgraphUrl, {
       method: 'POST',
@@ -77,17 +82,23 @@ class DomaApiClient {
       })
     })
     
+    console.log('GraphQL response status:', response.status);
+    console.log('GraphQL response status text:', response.statusText);
+    
     if (!response.ok) {
       throw new Error(`Subgraph API error: ${response.statusText}`)
     }
     
     const result = await response.json()
+    console.log('GraphQL response data:', result);
     
     if (result.errors) {
+      console.error('GraphQL errors:', result.errors);
       throw new Error(`GraphQL error: ${JSON.stringify(result.errors)}`)
     }
     
     if (useCache) {
+      console.log('Caching data for key:', key);
       domaCache.set(key, result.data);
     }
     
@@ -158,20 +169,37 @@ class DomaApiClient {
     `
     
     const cacheKey = `token_${tokenId}`;
+    console.log('Fetching token with query:', query, 'variables:', { tokenId });
     const data = await this.graphqlRequest(query, { tokenId }, useCache, cacheKey)
+    console.log('Token data received:', data);
     return data.token
   }
 
   async getListings(tokenId: string, status: string = 'ACTIVE', useCache: boolean = false) {
     try {
-      const token = await this.getToken(tokenId, useCache);
+      console.log('DomaApiClient.getListings called with tokenId:', tokenId, 'status:', status, 'useCache:', useCache);
+      const token = await this.getToken(tokenId, false); // Temporarily disable cache
+      console.log('Token data:', token);
       if (!token || !token.listings) {
+        console.log('No token or listings found');
         return { items: [], totalCount: 0 };
       }
       
       const filteredListings = status === 'ACTIVE' 
-        ? token.listings.filter((l: any) => !l.expiresAt || new Date(l.expiresAt) > new Date())
+        ? token.listings.filter((l: any) => {
+            console.log('Filtering listing:', l);
+            console.log('Listing expiresAt:', l.expiresAt);
+            console.log('Current date:', new Date());
+            console.log('ExpiresAt as Date:', new Date(l.expiresAt));
+            console.log('No expiresAt:', !l.expiresAt);
+            console.log('Future expiresAt:', l.expiresAt && new Date(l.expiresAt) > new Date());
+            const include = !l.expiresAt || new Date(l.expiresAt) > new Date();
+            console.log('Include listing:', include);
+            return include;
+          })
         : token.listings;
+
+      console.log('Filtered listings:', filteredListings);
 
       return {
         items: filteredListings,
@@ -356,10 +384,15 @@ export class DomaService {
   
   async getOrderBookListings(tokenId: string, useCache: boolean = false) {
     try {
+      console.log('Fetching listings for tokenId:', tokenId);
       const listingsResponse = await domaApiClient.getListings(tokenId, 'ACTIVE', useCache)
-      return listingsResponse.items || []
+      console.log('Listings response from API client:', listingsResponse);
+      const result = listingsResponse.items || []
+      console.log('Final listings result:', result);
+      return result;
     } catch (error: any) {
-      throw new Error(`Failed to fetch listings: ${error.message}`)
+      console.error('Error in getOrderBookListings:', error);
+      throw new Error(`Failed to fetch listings: ${error.message}`);
     }
   }
 

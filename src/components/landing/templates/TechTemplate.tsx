@@ -2,8 +2,10 @@
 import Image from 'next/image';
 import { SupabaseChat } from '@/components/landing/SupabaseChat';
 import { TemplateProps } from './types';
-import LoadingSpinner from '@/components/LoadingSpinner'; // New import
-import { useDomaMarketplaceData } from '@/hooks/useDomaMarketplaceData'; // New import
+import LoadingSpinner from '@/components/LoadingSpinner';
+import { useDomaMarketplaceData } from '@/hooks/useDomaMarketplaceData';
+import { formatUnits } from 'viem';
+import { OfferCard } from '@/components/landing/OfferCard';
 
 export function TechTemplate({ domain, customization }: TemplateProps)  {
   const {
@@ -14,9 +16,41 @@ export function TechTemplate({ domain, customization }: TemplateProps)  {
     isBuying,
     handleBuyNow,
     isConnected,
+    address,
   } = useDomaMarketplaceData({ tokenId: domain.tokenId });
 
-  const activeListing = listings.length > 0 ? listings[0] : null; // Assuming one active listing for simplicity
+  // Find the active listing (first one in the array)
+  const activeListing = listings && listings.length > 0 ? listings[0] : null;
+
+  // Format the price from wei to ETH if we have a valid listing
+  let formattedPrice = '';
+  let currencySymbol = 'ETH';
+  if (activeListing && activeListing.price && activeListing.currency) {
+    try {
+      // Convert from wei to ETH
+      formattedPrice = formatUnits(BigInt(activeListing.price), activeListing.currency.decimals || 18);
+      currencySymbol = activeListing.currency.symbol || 'ETH';
+    } catch (error) {
+      console.error('Error formatting price:', error);
+      // Fallback to raw price if formatting fails
+      formattedPrice = activeListing.price;
+      currencySymbol = activeListing.currency.symbol || 'ETH';
+    }
+  }
+
+  // Check if current user is the owner
+  const isOwner = isConnected && address && domain.owner.toLowerCase() === address.toLowerCase();
+
+  // Sort offers by price in descending order (highest first)
+  const sortedOffers = [...offers].sort((a, b) => {
+    try {
+      const priceA = BigInt(a.price || '0');
+      const priceB = BigInt(b.price || '0');
+      return priceB > priceA ? 1 : priceB < priceA ? -1 : 0;
+    } catch (err) {
+      return 0;
+    }
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white">
@@ -84,7 +118,7 @@ export function TechTemplate({ domain, customization }: TemplateProps)  {
                 <div className="bg-gray-900/50 p-4 rounded-xl">
                   <div className="flex items-center mb-2">
                     <svg className="w-5 h-5 mr-2 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                     <span className="text-sm text-gray-400">Owner</span>
                   </div>
@@ -133,7 +167,7 @@ export function TechTemplate({ domain, customization }: TemplateProps)  {
                       <div className="text-center">
                         <div className="text-sm text-cyan-300 mb-1">Buy Now Price</div>
                         <div className="text-4xl font-mono font-bold mb-6">
-                          {activeListing.price} {activeListing.currency?.symbol || 'USD'}
+                          {formattedPrice} {currencySymbol}
                         </div>
                         <button 
                           onClick={() => handleBuyNow(activeListing)}
@@ -163,17 +197,22 @@ export function TechTemplate({ domain, customization }: TemplateProps)  {
                   </div>
                 )}
 
-                {offers.length > 0 && (
+                {sortedOffers.length > 0 && (
                   <div className="bg-blue-50 border border-blue-200 p-6 rounded-lg">
-                    <h3 className="text-lg font-semibold text-blue-900 mb-4">Active Offers ({offers.length})</h3>
-                    <ul className="space-y-2">
-                      {offers.map((offer, index) => (
-                        <li key={index} className="flex justify-between text-gray-700">
-                          <span>Offer from {offer.offererAddress.slice(0, 6)}...</span>
-                          <span className="font-bold">{offer.price} {offer.currency?.symbol || 'USD'}</span>
-                        </li>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-blue-900">Active Offers ({sortedOffers.length})</h3>
+                      <span className="text-sm text-blue-600">Highest first</span>
+                    </div>
+                    <div className="space-y-4">
+                      {sortedOffers.map((offer) => (
+                        <OfferCard 
+                          key={offer.id} 
+                          offer={offer} 
+                          isOwner={isOwner}
+                          domainId={domain.id}
+                        />
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 )}
               </>

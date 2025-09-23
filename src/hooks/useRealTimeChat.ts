@@ -54,27 +54,40 @@ export function useRealtimeChat(domainId: string, buyerAddress: string | null | 
       const historicalMessages: PrismaChatMessage[] = await historyResponse.json()
       setMessages(historicalMessages)
 
-      // Only set up real-time subscription if we're in the browser
-      if (typeof window !== 'undefined' && supabase) {
-        // Subscribe to NEW messages in real-time
-        if (channel) await supabase.removeChannel(channel)
+      // Only set up real-time subscription if we're in the browser and have a valid supabase client
+      if (typeof window !== 'undefined' && supabase && conversation.id) {
+        // Unsubscribe from any existing channel
+        if (channel) {
+          supabase.removeChannel(channel)
+        }
 
+        // Create a new channel with proper configuration
         const newChannel = supabase
           .channel(`chat_room:${conversation.id}`)
-          .on('postgres_changes', { 
-            event: 'INSERT', 
-            schema: 'public', 
-            table: 'chat_messages', 
-            filter: `conversationId=eq.${conversation.id}` 
-          }, 
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'chat_messages', // Correct table name from Prisma schema
+              filter: `conversationId=eq.${conversation.id}`
+            },
             (payload: any) => {
+              // Add the new message to the messages array
               setMessages((prev) => [...prev, payload.new as PrismaChatMessage])
             }
           )
           .subscribe((status: any, err: any) => {
-            if (status === 'SUBSCRIBED') setIsLoading(false)
-            if (err) console.error('Real-time channel error:', err)
+            console.log('Real-time channel status:', status)
+            if (status === 'SUBSCRIBED') {
+              console.log('Successfully subscribed to real-time chat updates')
+              setIsLoading(false)
+            }
+            if (err) {
+              console.error('Real-time channel error:', err)
+            }
           })
+        
         setChannel(newChannel)
       } else {
         setIsLoading(false)
@@ -84,12 +97,13 @@ export function useRealtimeChat(domainId: string, buyerAddress: string | null | 
       console.error("Error initializing chat:", error)
       setIsLoading(false)
     }
-  }, [buyerAddress, sellerAddress, domainId, isBrowser])
+  }, [buyerAddress, sellerAddress, domainId, isBrowser, channel])
 
   useEffect(() => {
     if (isBrowser) {
       initializeConversation()
     }
+    // Clean up the channel when the component unmounts
     return () => {
       if (channel && typeof window !== 'undefined' && supabase) {
         supabase.removeChannel(channel)
@@ -101,7 +115,7 @@ export function useRealtimeChat(domainId: string, buyerAddress: string | null | 
     if (!currentUserAddress || !content.trim() || !conversationId || !isBrowser) {
         throw new Error("Cannot send message, chat not fully initialized.")
     }
-    await fetch('/api/chat/message', {
+    const response = await fetch('/api/chat/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -111,6 +125,10 @@ export function useRealtimeChat(domainId: string, buyerAddress: string | null | 
           messageType 
         }),
     })
+    
+    if (!response.ok) {
+      throw new Error('Failed to send message')
+    }
   }
 
   return { messages, isLoading, sendMessage }

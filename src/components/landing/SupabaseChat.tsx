@@ -152,9 +152,9 @@ function ChatInterface({
                           Offer: {offerAmount} ETH
                         </span>
                       </div>
-                      {msg.content.includes('') && (
+                      {msg.content.includes('\n') && (
                         <p className={isOwnMessage ? 'text-white' : 'text-gray-700'}>
-                          {msg.content.split('')[1]}
+                          {msg.content.split('\n')[1]}
                         </p>
                       )}
                       {!isOwnMessage && isOwner && (

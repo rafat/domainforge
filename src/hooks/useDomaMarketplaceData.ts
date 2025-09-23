@@ -8,8 +8,6 @@ import { domaApi } from '@/lib/domaApi';
 import { usePublicClient, useWalletClient } from 'wagmi';
 import { parseUnits } from 'viem';
 
-
-
 interface UseDomaMarketplaceDataProps {
   tokenId: string;
 }
@@ -36,15 +34,42 @@ export function useDomaMarketplaceData({ tokenId }: UseDomaMarketplaceDataProps)
       setLoadingDomaData(true);
       setDomaDataError(null);
       
+      console.log('Fetching Doma data for tokenId:', tokenId);
       const [offersData, listingsData] = await Promise.all([
         domaApi.getOffers(tokenId),
         domaApi.getListings(tokenId)
       ]);
 
-      setOffers(offersData || []);
-      setListings(listingsData.items || []);
+      console.log('Offers data received:', offersData);
+      console.log('Listings data received:', listingsData);
+      console.log('Listings data type:', typeof listingsData);
+      console.log('Is listingsData an array?', Array.isArray(listingsData));
+      if (listingsData && typeof listingsData === 'object') {
+        console.log('Listings data keys:', Object.keys(listingsData));
+      }
+
+      // Ensure we're setting the data correctly
+      const offersArray = Array.isArray(offersData) ? offersData : [];
+      // Handle both possible data structures
+      let listingsArray = [];
+      if (Array.isArray(listingsData)) {
+        listingsArray = listingsData;
+      } else if (listingsData && typeof listingsData === 'object') {
+        if (Array.isArray(listingsData.listings)) {
+          listingsArray = listingsData.listings;
+        } else if (Array.isArray(listingsData.items)) {
+          listingsArray = listingsData.items;
+        }
+      }
+      
+      console.log('Processed offers array:', offersArray);
+      console.log('Processed listings array:', listingsArray);
+
+      setOffers(offersArray);
+      setListings(listingsArray);
     } catch (error: any) {
       console.error('Failed to fetch Doma offers/listings:', error);
+      console.error('Error details:', error.message, error.stack);
       setDomaDataError(`Failed to load marketplace data: ${error.message}`);
     } finally {
       setLoadingDomaData(false);
