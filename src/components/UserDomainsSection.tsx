@@ -105,18 +105,12 @@ export default function UserDomainsSection({ onQuickOffer, debugAddress }: UserD
                 No domains found
               </h3>
               <p className="text-gray-600 mb-6">
-                Start building your digital identity by minting or purchasing a domain.
+                Start building your digital identity by purchasing a domain.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link
-                  href="/mint"
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                >
-                  Mint Domain
-                </Link>
-                <Link
                   href="/marketplace"
-                  className="border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                  className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
                 >
                   Browse Marketplace
                 </Link>
@@ -142,12 +136,6 @@ export default function UserDomainsSection({ onQuickOffer, debugAddress }: UserD
                   className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
                 >
                   Manage All Domains
-                </Link>
-                <Link
-                  href="/mint"
-                  className="border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-                >
-                  Mint New Domain
                 </Link>
               </div>
             </div>

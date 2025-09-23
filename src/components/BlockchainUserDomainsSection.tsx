@@ -490,7 +490,7 @@ export default function BlockchainUserDomainsSection({ debugAddress }: Blockchai
                 You don&#39;t own any domains on the blockchain yet.
               </p>
               <p className="text-sm text-gray-500 mb-6">
-                Start building your digital identity by minting or purchasing a domain.
+                Start building your digital identity by purchasing a domain.
               </p>
               <button
                 onClick={refetch}
@@ -499,10 +499,10 @@ export default function BlockchainUserDomainsSection({ debugAddress }: Blockchai
                 Refresh
               </button>
               <a
-                href="/mint"
+                href="/marketplace"
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
               >
-                Mint Domain
+                Browse Marketplace
               </a>
             </div>
           </div>

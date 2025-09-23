@@ -184,10 +184,10 @@ export default function ProfilePage() {
                   <div className="text-center py-12">
                     <div className="text-gray-500 text-lg mb-4">No domains found</div>
                     <a
-                      href="/mint"
+                      href="/marketplace"
                       className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
                     >
-                      Mint Your First Domain
+                      Browse Marketplace
                     </a>
                   </div>
                 ) : (
@@ -260,10 +260,10 @@ export default function ProfilePage() {
                     <div className="text-center py-12">
                       <div className="text-gray-500 text-lg mb-4">No domains found</div>
                       <a
-                        href="/mint"
+                        href="/marketplace"
                         className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
                       >
-                        Mint Your First Domain
+                        Browse Marketplace
                       </a>
                     </div>
                   ) : (
@@ -315,10 +315,10 @@ export default function ProfilePage() {
                     <div className="text-center py-12">
                       <div className="text-gray-500 text-lg mb-4">No domains found</div>
                       <a
-                        href="/mint"
+                        href="/marketplace"
                         className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
                       >
-                        Mint Your First Domain
+                        Browse Marketplace
                       </a>
                     </div>
                   ) : (
