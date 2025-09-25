@@ -5,34 +5,71 @@ import { useState, useEffect } from 'react'
 import { useWallet } from '@/hooks/useWallet'
 import DomainCard from '@/components/DomainCard'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import ConnectWalletButton from '@/components/ConnectWalletButton'
 import { DomaDomain as DomainNFT, DomaOffer as Offer } from '@/types/doma'
+import { useDomaBlockchainDomains } from '@/hooks/useDomaBlockchainDomains'
 
 export default function ProfilePage() {
-  const { address, isConnected } = useWallet()
+  const { address: walletAddress, isConnected } = useWallet()
+  const { domains: blockchainDomains, loading: blockchainLoading } = useDomaBlockchainDomains()
   const [activeTab, setActiveTab] = useState('domains')
   const [domains, setDomains] = useState<DomainNFT[]>([])
   const [offers, setOffers] = useState<Offer[]>([])
+  const [activities, setActivities] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (isConnected && address) {
+    if (isConnected && walletAddress) {
       fetchUserData()
     }
-  }, [isConnected, address, activeTab])
+  }, [isConnected, walletAddress, activeTab])
 
   const fetchUserData = async () => {
-    if (!address) return
+    if (!walletAddress) return
 
     setLoading(true)
     try {
       if (activeTab === 'domains') {
-        const response = await fetch(`/api/users/${address}/domains`)
-        const data = await response.json()
-        setDomains(data.domains || [])
+        // Use blockchain domains directly
+        // Convert to the format expected by DomainCard
+        const convertedDomains = blockchainDomains.map(domain => ({
+          id: domain.name,
+          name: domain.name,
+          tokenId: domain.tokens[0]?.tokenId || '',
+          tokenAddress: domain.tokens[0]?.tokenAddress || '',
+          owner: domain.tokens[0]?.ownerAddress || '',
+          contractAddress: domain.tokens[0]?.tokenAddress || '',
+          chainId: parseInt(domain.tokens[0]?.chain.networkId.split(':')[1] || '97476', 10),
+          registrationDate: new Date(domain.tokenizedAt),
+          expiry: domain.expiresAt ? new Date(domain.expiresAt) : null,
+          title: null,
+          description: null,
+          template: 'minimal',
+          customCSS: null,
+          isActive: new Date(domain.expiresAt) > new Date(),
+          screenshot: null,
+          metaTitle: null,
+          metaDescription: null,
+          buyNowPrice: null,
+          acceptOffers: true,
+          createdAt: new Date(domain.tokenizedAt),
+          updatedAt: new Date(domain.tokenizedAt),
+          views: 0,
+          forSale: false,
+          price: null,
+          records: [],
+          offers: []
+        }))
+        setDomains(convertedDomains)
       } else if (activeTab === 'offers') {
-        const response = await fetch(`/api/users/${address}/offers`)
+        const response = await fetch(`/api/users/${walletAddress}/offers`)
         const data = await response.json()
         setOffers(data.offers || [])
+      } else if (activeTab === 'activity') {
+        // Fetch user activities
+        const response = await fetch(`/api/users/${walletAddress}/activities`)
+        const data = await response.json()
+        setActivities(data.activities || [])
       }
     } catch (error) {
       console.error('Failed to fetch user data:', error)
@@ -49,7 +86,7 @@ export default function ProfilePage() {
         },
         body: JSON.stringify({
           price: parseFloat(price),
-          seller: address,
+          seller: walletAddress,
         }),
       })
       if (response.ok) {
@@ -71,7 +108,7 @@ export default function ProfilePage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          seller: address,
+          seller: walletAddress,
         }),
       })
       if (response.ok) {
@@ -109,19 +146,15 @@ export default function ProfilePage() {
           <p className="text-gray-600 mb-6">
             Please connect your wallet to view your profile and manage your domains.
           </p>
-          <button className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
-            Connect Wallet
-          </button>
+          <ConnectWalletButton />
         </div>
       </div>
     )
   }
   const tabs = [
-    { id: 'domains', name: 'My Domains', count: domains.length },
-    { id: 'builder', name: 'Page Builder', count: domains.filter(d => d.isActive).length },
+    { id: 'domains', name: 'My Domains', count: blockchainDomains.length },
     { id: 'offers', name: 'Offers', count: offers.length },
-    { id: 'activity', name: 'Activity', count: 0 },
-    { id: 'settings', name: 'Settings', count: 0 },
+    { id: 'activity', name: 'Activity', count: activities.length },
   ]
   return (
     <div className="min-h-screen bg-gray-50">
@@ -131,12 +164,12 @@ export default function ProfilePage() {
           <div className="flex items-center space-x-4">
             <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
               <span className="text-white font-bold text-xl">
-                {address?.slice(2, 4).toUpperCase()}
+                {walletAddress?.slice(2, 4).toUpperCase()}
               </span>
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                {address?.slice(0, 6)}...{address?.slice(-4)}
+                {walletAddress?.slice(0, 6)}...{walletAddress?.slice(-4)}
               </h1>
               <p className="text-gray-600">Ethereum Address</p>
             </div>
@@ -166,7 +199,7 @@ export default function ProfilePage() {
           </nav>
         </div>
         {/* Tab Content */}
-        {loading ? (
+        {loading || blockchainLoading ? (
           <div className="flex justify-center py-12">
             <LoadingSpinner size="lg" />
           </div>
@@ -176,11 +209,11 @@ export default function ProfilePage() {
               <div>
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-xl font-semibold text-gray-900">
-                    My Domains ({domains.length})
+                    My Domains ({blockchainDomains.length})
                   </h2>
                 </div>
                 
-                {domains.length === 0 ? (
+                {blockchainDomains.length === 0 ? (
                   <div className="text-center py-12">
                     <div className="text-gray-500 text-lg mb-4">No domains found</div>
                     <a
@@ -192,11 +225,49 @@ export default function ProfilePage() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {domains.map((domain) => (
-                                              <DomainCard 
-                          key={domain.id} 
-                          domain={domain} 
-                        />
+                    {blockchainDomains.map((domain) => (
+                      <div key={`${domain.name}-${domain.tokenizedAt}`} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                        <div className="p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="font-bold text-gray-900 truncate max-w-[200px]">{domain.name}</h3>
+                          </div>
+                          <div className="space-y-1 text-sm text-gray-600">
+                            <div className="flex justify-between">
+                              <span>Expires:</span>
+                              <span>{new Date(domain.expiresAt).toLocaleDateString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Type:</span>
+                              <span>{domain.tokens[0]?.type || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Chain:</span>
+                              <span>{domain.tokens[0]?.chain.name || 'N/A'}</span>
+                            </div>
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-1">
+                            {new Date(domain.expiresAt) < new Date() ? (
+                              <span className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded">Expired</span>
+                            ) : (
+                              <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Active</span>
+                            )}
+                            {domain.eoi && (
+                              <span className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded">EOI</span>
+                            )}
+                            {domain.claimedBy && (
+                              <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">Claimed</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="bg-gray-50 px-4 py-3 border-t border-gray-200">
+                          <a 
+                            href={`/builder/new?tokenId=${encodeURIComponent(domain.tokens[0]?.tokenId || '')}&domainName=${encodeURIComponent(domain.name)}`}
+                            className="block text-center text-sm bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
+                          >
+                            Create Landing Page
+                          </a>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -252,187 +323,62 @@ export default function ProfilePage() {
                 )}
               </div>
             )}
-            {activeTab === 'builder' && (
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">Landing Page Builder</h2>
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  {domains.length === 0 ? (
-                    <div className="text-center py-12">
-                      <div className="text-gray-500 text-lg mb-4">No domains found</div>
-                      <a
-                        href="/marketplace"
-                        className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-                      >
-                        Browse Marketplace
-                      </a>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      <div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-4">Select a Domain</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {domains.map((domain) => (
-                            <a
-                              key={domain.id}
-                              href={`/profile?tab=builder&domain=${domain.tokenId}`}
-                              className={`border rounded-lg p-4 hover:border-blue-500 transition-colors ${
-                                typeof window !== 'undefined' && 
-                                new URLSearchParams(window.location.search).get('domain') === domain.tokenId
-                                  ? 'border-blue-500 bg-blue-50'
-                                  : 'border-gray-200'
-                              }`}
-                            >
-                              <div className="font-medium text-gray-900">{domain.name}</div>
-                              <div className="text-sm text-gray-600 mt-1">
-                                {domain.isActive ? (
-                                  <span className="text-green-600">Published</span>
-                                ) : (
-                                  <span className="text-gray-500">Draft</span>
-                                )}
-                              </div>
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                      
-                      {/* PageBuilderSection component was here but is not needed */}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            {activeTab === 'builder' && (
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">Page Builder</h2>
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <div className="mb-6">
-                    <p className="text-gray-600 mb-4">
-                      Create custom landing pages for your domains to showcase them for sale.
-                    </p>
-                  </div>
-                  
-                  {domains.length === 0 ? (
-                    <div className="text-center py-12">
-                      <div className="text-gray-500 text-lg mb-4">No domains found</div>
-                      <a
-                        href="/marketplace"
-                        className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-                      >
-                        Browse Marketplace
-                      </a>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {domains.map((domain) => (
-                        <div key={domain.id} className="border border-gray-200 rounded-lg p-4">
-                          <div className="flex items-center space-x-3 mb-4">
-                            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                              <span className="text-white font-bold">
-                                {domain.name.charAt(0).toUpperCase()}
-                              </span>
-                            </div>
-                            <div>
-                              <h3 className="font-medium text-gray-900">{domain.name}</h3>
-                              <p className="text-xs text-gray-500">Token: {domain.tokenId.slice(0, 8)}...</p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center justify-between mb-4">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              domain.isActive 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {domain.isActive ? 'Published' : 'Draft'}
-                            </span>
-                            
-                            {domain.forSale && domain.price && (
-                              <span className="text-sm font-medium text-green-600">
-                                {domain.price} ETH
-                              </span>
-                            )}
-                          </div>
-                          
-                          <a
-                            href={`/builder/${domain.id}`}
-                            className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 text-center text-sm font-medium block"
-                          >
-                            {domain.isActive ? 'Edit Page' : 'Create Page'}
-                          </a>
-                          
-                          {domain.isActive && (
-                            <a
-                              href={`/landing/${domain.tokenId}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="w-full mt-2 text-blue-600 py-2 rounded-lg hover:bg-blue-50 text-center text-sm font-medium block border border-blue-600"
-                            >
-                              View Published
-                            </a>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
             {activeTab === 'activity' && (
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 mb-6">Activity</h2>
-                <div className="text-center py-12">
-                  <div className="text-gray-500 text-lg mb-4">Activity feed coming soon</div>
-                  <p className="text-gray-400">
-                    Track all your domain transactions and activities
-                  </p>
-                </div>
-              </div>
-            )}
-            {activeTab === 'settings' && (
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">Settings</h2>
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Profile Settings</h3>
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Display Name
-                          </label>
-                          <input
-                            type="text"
-                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Enter display name"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Email Notifications
-                          </label>
-                          <div className="mt-2 space-y-2">
-                            <label className="flex items-center">
-                              <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                              <span className="ml-2 text-gray-700">Domain expiration reminders</span>
-                            </label>
-                            <label className="flex items-center">
-                              <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                              <span className="ml-2 text-gray-700">New offer notifications</span>
-                            </label>
-                            <label className="flex items-center">
-                              <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                              <span className="ml-2 text-gray-700">Transaction confirmations</span>
-                            </label>
+                <div className="bg-white rounded-lg shadow-sm">
+                  {activities.length > 0 ? (
+                    <div className="divide-y divide-gray-200">
+                      {activities.map((activity) => (
+                        <div key={activity.id} className="p-4 flex items-start">
+                          <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                            activity.type === 'domain_registration' ? 'bg-blue-100' :
+                            activity.type === 'offer_received' ? 'bg-yellow-100' : 'bg-green-100'
+                          }`}>
+                            {activity.type === 'domain_registration' && (
+                              <span className="text-blue-600 text-sm">R</span>
+                            )}
+                            {activity.type === 'offer_received' && (
+                              <span className="text-yellow-600 text-sm">O</span>
+                            )}
+                            {activity.type === 'domain_sale' && (
+                              <span className="text-green-600 text-sm">S</span>
+                            )}
+                          </div>
+                          <div className="ml-3">
+                            <p className="text-sm font-medium text-gray-900">
+                              {activity.type === 'domain_registration' && `Registered ${activity.domainName}`}
+                              {activity.type === 'offer_received' && `Offer received for ${activity.domainName}`}
+                              {activity.type === 'domain_sale' && `Sold ${activity.domainName}`}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {activity.type === 'offer_received' && `Amount: ${activity.amount}`}
+                              {activity.type === 'domain_sale' && `Sale price: ${activity.amount}`}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {new Date(activity.timestamp).toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="ml-auto">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              activity.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              activity.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {activity.status}
+                            </span>
                           </div>
                         </div>
-                      </div>
-                      <div className="mt-6">
-                        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                          Save Settings
-                        </button>
-                      </div>
+                      ))}
                     </div>
-                  </div>
+                  ) : (
+                    <div className="p-8 text-center">
+                      <div className="text-gray-500 text-lg mb-4">No activity yet</div>
+                      <p className="text-gray-400 max-w-md mx-auto">
+                        Activities like domain registrations, sales, and offers will appear here.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

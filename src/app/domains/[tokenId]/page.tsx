@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { useWallet } from '@/hooks/useWallet'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import TokenIdDisplay from '@/components/TokenIdDisplay'
 import { DomaOffer as Offer, DomaDomain as DomainNFT } from '@/types/doma'
 
 export default function DomainDetailPage() {
@@ -225,7 +226,7 @@ export default function DomainDetailPage() {
                 </a>
                 {domain.isActive ? (
                   <a
-                    href={`/landing/${domain.tokenId}`}
+                    href={`/landing/${domain.name}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="bg-green-100 text-green-700 px-6 py-3 rounded-lg hover:bg-green-200 font-medium inline-block"
@@ -279,7 +280,9 @@ export default function DomainDetailPage() {
                   <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
                     <div>
                       <dt className="text-sm font-medium text-gray-500">Token ID</dt>
-                      <dd className="mt-1 text-sm text-gray-900">#{domain.tokenId}</dd>
+                      <dd className="mt-1 text-sm text-gray-900">
+                        <TokenIdDisplay tokenId={domain.tokenId} />
+                      </dd>
                     </div>
                     <div>
                       <dt className="text-sm font-medium text-gray-500">Registration Date</dt>
