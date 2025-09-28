@@ -301,6 +301,25 @@ class DomaApiClient {
   async getListingFulfillmentData(listingId: string, buyerAddress: string) {
     return this.restRequest(`/v1/orderbook/listing/${listingId}/${buyerAddress}`);
   }
+  
+  async getDomainOffers(domainId: string) {
+    try {
+      // Get all offers for the domain from the database
+      const offers = await prisma.offer.findMany({
+        where: {
+          domainId: domainId,
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+      
+      return offers;
+    } catch (error: any) {
+      console.error('Error fetching domain offers:', error);
+      throw new Error(`Failed to fetch domain offers: ${error.message}`);
+    }
+  }
 }
 
 const domaApiClient = new DomaApiClient();
@@ -510,6 +529,81 @@ export class DomaService {
       return await domaApiClient.getListingFulfillmentData(listingId, buyerAddress);
     } catch (error: any) {
       throw new Error(`Failed to get listing fulfillment data: ${error.message}`);
+    }
+  }
+
+  async createOffer(tokenId: string, price: string, offererAddress: string) {
+    try {
+      console.log('Creating offer for token:', tokenId, 'with price:', price, 'by address:', offererAddress);
+      
+      // Get token details to fetch necessary parameters
+      const token = await domaApiClient.getToken(tokenId, false);
+      if (!token) {
+        throw new Error(`Token ${tokenId} not found`);
+      }
+
+      // Get the chain information for the token
+      const chainId = token.chain?.networkId || 'eip155:97476'; // Default to Doma testnet
+      const tokenAddress = token.tokenAddress;
+
+      // Convert price to wei using viem
+      const { parseEther } = await import('viem');
+      const priceInWei = parseEther(price.toString());
+
+      // Prepare the offer parameters following the Seaport standard
+      // For offers, the offerer is providing ETH to get the NFT
+      const offerParameters = {
+        offerer: offererAddress,
+        zone: "0x0000000000000000000000000000000000000000",
+        orderType: 0, // FULL_OPEN
+        startTime: Math.floor(Date.now() / 1000).toString(), // Current time
+        endTime: (Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60).toString(), // 30 days from now
+        zoneHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
+        salt: Math.floor(Math.random() * 1000000000000000000).toString(), // Random salt
+        conduitKey: "0x0000000000000000000000000000000000000000000000000000000000000000",
+        counter: "0",
+        offer: [
+          {
+            itemType: 0, // NATIVE (ETH) - what the buyer is offering
+            token: "0x0000000000000000000000000000000000000000",
+            identifierOrCriteria: "0",
+            startAmount: priceInWei.toString(),
+            endAmount: priceInWei.toString()
+          }
+        ],
+        consideration: [
+          {
+            itemType: 2, // ERC721 - what the buyer wants to get
+            token: tokenAddress || "0x0000000000000000000000000000000000000000",
+            identifierOrCriteria: tokenId,
+            startAmount: "1",
+            endAmount: "1",
+            recipient: offererAddress // The offerer gets the NFT if the seller accepts
+          }
+        ],
+        totalOriginalConsiderationItems: 1
+      };
+
+      // Create the offer using the Doma Orderbook API
+      const offerData = {
+        orderbook: 'DOMA' as OrderbookType,
+        chainId,
+        parameters: offerParameters,
+      };
+
+      console.log('Sending offer data to Doma API:', JSON.stringify(offerData, null, 2));
+      
+      const response = await domaApiClient.restRequest('/v1/orderbook/offer', {
+        method: 'POST',
+        body: JSON.stringify(offerData),
+      });
+
+      console.log('Offer creation response:', JSON.stringify(response, null, 2));
+      
+      return response;
+    } catch (error: any) {
+      console.error('Server - Error in createOffer:', error);
+      throw new Error(`Failed to create offer: ${error.message || 'Unknown error'}`);
     }
   }
 }

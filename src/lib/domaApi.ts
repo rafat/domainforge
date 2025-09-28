@@ -120,5 +120,15 @@ export const domaApi = {
       },
       body: JSON.stringify(params),
     });
+  },
+  
+  async createOffer(tokenId: string, amount: string, buyerAddress: string) {
+    return fetcher('/api/doma/offers', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ tokenId, amount, buyerAddress }),
+    });
   }
 };

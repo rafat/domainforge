@@ -184,6 +184,7 @@ export function CorporateTemplate({ domain, customization }: TemplateProps) {
               domainId={domain.id} 
               ownerAddress={domain.owner} 
               domainName={domain.name} 
+              tokenId={domain.tokenId}
             />
           </div>
         </div>

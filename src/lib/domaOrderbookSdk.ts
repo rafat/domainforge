@@ -10,12 +10,11 @@ import {
   BuyListingParams,
   CancelListingParams,
   GetOrderbookFeeRequest,
-  GetSupportedCurrenciesRequest
+  GetSupportedCurrenciesRequest,
+  CreateOfferParams
 } from '@doma-protocol/orderbook-sdk';
 import { parseEther, parseUnits } from 'viem';
 import { domaTestnet } from './chains';
-// Remove this import - not needed
-// import { ItemType } from '@opensea/seaport-js/lib/constants';
 
 // Helper function to create SDK client
 function createClient() {
@@ -104,7 +103,69 @@ export async function createDomaListing(
   }
 }
 
-// Rest of your functions remain the same...
+export async function createDomaOffer(
+  params: {
+    contractAddress: string;
+    tokenId: string;
+    price: string; // in ETH
+    buyerAddress: string;
+  },
+  walletClient: any,
+  chainId: Caip2ChainId = 'eip155:97476', // Doma testnet
+  fees?: any,
+  currency?: any
+) {
+  try {
+    console.log('Creating Doma offer with params:', params);
+
+    const signer = viemToEthersSigner(walletClient, chainId);
+    const domaOrderbookClient = createClient();
+
+    // Explicitly define the item to be offered
+    const offerItem: any = {
+      contract: params.contractAddress,
+      tokenId: params.tokenId,
+      duration: 30 * 24 * 3600 * 1000, // 30 days
+    };
+
+    // Explicitly handle currency and price
+    if (currency && currency.contractAddress && currency.contractAddress !== '0x0000000000000000000000000000000000000000') {
+      offerItem.price = parseUnits(params.price, currency.decimals).toString();
+      offerItem.currencyContractAddress = currency.contractAddress;
+    } else {
+      // Default to native ETH
+      offerItem.price = parseEther(params.price).toString();
+      offerItem.currencyContractAddress = '0x0000000000000000000000000000000000000000';
+    }
+
+    const offerParams: CreateOfferParams = {
+      items: [offerItem],
+      orderbook: OrderbookType.DOMA,
+      source: 'domainforge',
+      ...(fees && { marketplaceFees: fees }),
+    };
+
+    console.log('Offer params being sent to SDK:', offerParams);
+
+    const onProgress: OnProgressCallback = (progress) => {
+      console.log('Creating offer progress:', progress);
+    };
+
+    const result = await domaOrderbookClient.createOffer({
+      params: offerParams,
+      signer,
+      chainId,
+      onProgress
+    });
+
+    console.log('Doma offer creation result:', result);
+    return result;
+  } catch (error) {
+    console.error('Error creating Doma offer:', error);
+    throw error;
+  }
+}
+
 export async function buyDomaListing(
   params: {
     orderId: string;
@@ -142,6 +203,19 @@ export async function buyDomaListing(
     console.error('Error buying Doma listing:', error);
     throw error;
   }
+}
+
+export async function acceptDomaOffer(
+  params: {
+    orderId: string;
+    buyerAddress: string;
+  },
+  walletClient: any,
+  chainId: Caip2ChainId = 'eip155:97476'
+) {
+  console.log('Accepting Doma offer by calling buyDomaListing with:', params);
+  // Accepting an offer is functionally the same as buying a listing from the offerer
+  return buyDomaListing(params, walletClient, chainId);
 }
 
 export async function cancelDomaListing(

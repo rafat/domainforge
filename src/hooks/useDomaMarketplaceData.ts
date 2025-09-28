@@ -50,6 +50,9 @@ export function useDomaMarketplaceData({ tokenId }: UseDomaMarketplaceDataProps)
 
       // Ensure we're setting the data correctly
       const offersArray = Array.isArray(offersData) ? offersData : [];
+      const activeOffers = offersArray.filter(offer => 
+        offer.status === 'PENDING' && new Date(offer.expiresAt) > new Date()
+      );
       // Handle both possible data structures
       let listingsArray = [];
       if (Array.isArray(listingsData)) {
@@ -62,10 +65,10 @@ export function useDomaMarketplaceData({ tokenId }: UseDomaMarketplaceDataProps)
         }
       }
       
-      console.log('Processed offers array:', offersArray);
+      console.log('Processed active offers array:', activeOffers);
       console.log('Processed listings array:', listingsArray);
 
-      setOffers(offersArray);
+      setOffers(activeOffers);
       setListings(listingsArray);
     } catch (error: any) {
       console.error('Failed to fetch Doma offers/listings:', error);

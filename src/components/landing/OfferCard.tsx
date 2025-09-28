@@ -6,6 +6,8 @@ import { DomaOffer } from '@/types/doma'
 import { formatUnits } from 'viem'
 import { useWallet } from '@/hooks/useWallet'
 import { domaApi } from '@/lib/domaApi'
+import { acceptDomaOffer } from '@/lib/domaOrderbookSdk';
+import { useWalletClient } from 'wagmi';
 
 interface OfferCardProps {
   offer: DomaOffer
@@ -23,6 +25,7 @@ export function OfferCard({
   const { address, isConnected } = useWallet()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { data: walletClient } = useWalletClient();
 
   // Format the offer price
   const formatPrice = () => {
@@ -65,93 +68,58 @@ export function OfferCard({
 
   // Handle accept offer
   const handleAcceptOffer = async () => {
-    if (!isConnected || !isOwner) {
-      setError('You must be connected and the owner to accept offers')
-      return
+    if (!isConnected || !isOwner || !address || !walletClient) {
+      setError('You must be connected as the owner to accept offers.');
+      return;
     }
 
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     
     try {
-      // In a real implementation, you would:
-      // 1. Call Doma's API to accept the offer
-      // 2. Update the domain ownership in the database
-      // 3. Notify both parties
-      
-      // For now, we'll just simulate the process
-      console.log('Accepting offer:', offer.id)
-      
-      // Call the API to accept the offer
-      // This would typically involve calling a server endpoint that handles the blockchain transaction
-      const response = await fetch('/api/offers/accept', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          offerId: offer.id,
-          domainId: domainId,
-          offererAddress: offer.offererAddress,
-        }),
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to accept offer')
-      }
-      
-      // Notify parent component of the action
+      const result = await acceptDomaOffer({
+        orderId: offer.externalId, // Use the on-chain order ID
+        buyerAddress: address, // The seller is the one "buying" to fulfill the offer
+      }, walletClient);
+
+      console.log('Offer accepted, transaction result:', result);
+      alert('Offer accepted successfully! Transaction has been sent.');
+
+      // Notify parent component to refetch data
       if (onOfferAction) {
-        onOfferAction(offer.id, 'accept')
+        onOfferAction(offer.id, 'accept');
       }
-      
-      alert('Offer accepted successfully!')
+
     } catch (err: any) {
-      console.error('Failed to accept offer:', err)
-      setError(err.message || 'Failed to accept offer')
+      console.error('Failed to accept offer:', err);
+      setError(err.message || 'Failed to accept offer');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   // Handle reject offer
   const handleRejectOffer = async () => {
-    if (!isConnected || !isOwner) {
-      setError('You must be connected and the owner to reject offers')
-      return
-    }
-
-    setLoading(true)
-    setError(null)
-    
+    if (!isConnected || !isOwner || !address) return;
+    setLoading(true);
+    setError(null);
     try {
-      // Call the API to reject the offer
-      const response = await fetch('/api/offers/reject', {
+      const response = await fetch(`/api/offers/${offer.id}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          offerId: offer.id,
-          domainId: domainId,
-        }),
-      })
-      
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reject', sellerAddress: address }),
+      });
       if (!response.ok) {
-        throw new Error('Failed to reject offer')
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to reject offer');
       }
-      
-      // Notify parent component of the action
-      if (onOfferAction) {
-        onOfferAction(offer.id, 'reject')
-      }
-      
-      alert('Offer rejected successfully!')
+      alert('Offer rejected successfully!');
+      if (onOfferAction) onOfferAction(offer.id, 'reject');
     } catch (err: any) {
-      console.error('Failed to reject offer:', err)
-      setError(err.message || 'Failed to reject offer')
+      console.error('Failed to reject offer:', err);
+      setError(err.message || 'Failed to reject offer');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 

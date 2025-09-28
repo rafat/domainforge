@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 
+export const revalidate = 0; // Ensure this route is always dynamic
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const domainId = searchParams.get('domainId')

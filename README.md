@@ -28,6 +28,7 @@ DomainForge now includes enhanced real-time chat functionality:
 - Unread message tracking
 - Message deduplication and synchronization
 - Improved reliability and network resilience
+- **NEW: Chat-based offer creation and acceptance** - Buyers can make offers directly through the chat interface, and sellers can accept/reject them with on-chain transaction execution
 
 ## Getting Started
 

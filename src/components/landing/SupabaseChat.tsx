@@ -5,11 +5,16 @@ import { useAccount } from 'wagmi'
 import { useRealtimeChat } from '@/hooks/useRealTimeChat'
 import { ChatMessage as PrismaChatMessage, ChatConversation, Domain } from '@prisma/client'
 import { formatAddress } from '@/lib/utils'
+import { supabase } from '@/lib/supabase';
+import { useWalletClient } from 'wagmi';
+import { createDomaOffer } from '@/lib/domaOrderbookSdk';
+import { useDomainData } from '@/hooks/useDomainData';
 
 interface SupabaseChatProps {
   domainId: string // This should be the Prisma `id`, not `tokenId`
   ownerAddress: string
   domainName: string
+  tokenId: string
 }
 
 type ConversationWithDetails = ChatConversation & {
@@ -25,6 +30,8 @@ function ChatInterface({
   domainId,
   ownerAddress,
   isOwner,
+  conversationId,
+  tokenId
 }: {
   messages: PrismaChatMessage[],
   isLoading: boolean,
@@ -33,12 +40,16 @@ function ChatInterface({
   domainId: string,
   ownerAddress: string,
   isOwner: boolean,
+  conversationId: string | null,
+  tokenId: string
 }) {
   const [newMessage, setNewMessage] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [showOfferForm, setShowOfferForm] = useState(false)
   const [offerAmount, setOfferAmount] = useState('')
   const [offerMessage, setOfferMessage] = useState('')
+  const { data: walletClient } = useWalletClient();
+  const { domain: domainData } = useDomainData(tokenId);
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return
@@ -49,22 +60,59 @@ function ChatInterface({
   }
 
   const handleSendOffer = async () => {
-    if (!offerAmount || parseFloat(offerAmount) <= 0) return
-    
-    setIsSending(true)
+    if (!offerAmount || parseFloat(offerAmount) <= 0 || !walletClient || !domainData) {
+      alert('Please fill in all fields and ensure your wallet is connected.');
+      return;
+    }
+
+    setIsSending(true);
     try {
-      // Create offer message content
-      const offerContent = `💰 New offer: ${offerAmount} ETH${offerMessage ? `\n${offerMessage}` : ''}`
-      await onSendMessage(offerContent, 'offer')
+      // 1. Create the on-chain offer using the Doma SDK
+      const offerResult = await createDomaOffer({
+        contractAddress: domainData.contractAddress,
+        tokenId: domainData.tokenId,
+        price: offerAmount,
+        buyerAddress: currentUserAddress,
+      }, walletClient);
+
+      if (!offerResult?.orders?.[0]?.id) {
+        throw new Error('Failed to create on-chain offer or receive order ID.');
+      }
+
+      const orderId = offerResult.orders[0].id;
+
+      // 2. Send the created orderId to our backend to log it
+      const response = await fetch('/api/chat/create-offer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          conversationId,
+          senderAddress: currentUserAddress,
+          amount: parseFloat(offerAmount),
+          message: offerMessage,
+          orderId: orderId, // Pass the on-chain order ID
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to log offer in database');
+      }
+
+      // The backend will have created the chat message via a trigger or explicitly
+      console.log('On-chain offer created and logged successfully:', await response.json());
       
       // Reset offer form
-      setOfferAmount('')
-      setOfferMessage('')
-      setShowOfferForm(false)
+      setOfferAmount('');
+      setOfferMessage('');
+      setShowOfferForm(false);
     } catch (error) {
-      console.error('Failed to send offer:', error)
+      console.error('Failed to send offer:', error);
+      alert(`Failed to make offer: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
-      setIsSending(false)
+      setIsSending(false);
     }
   }
 
@@ -72,25 +120,65 @@ function ChatInterface({
     if (!isOwner) return
     
     try {
+      // Extract offer amount from the message content
+      const message = messages.find(msg => msg.id === messageId);
+      if (!message) {
+        throw new Error('Message not found');
+      }
+
+      const match = message.content.match(/💰 New offer: ([\d.]+) ETH/);
+      if (!match) {
+        throw new Error('Could not extract offer amount from message');
+      }
+
+      const offerAmount = match[1];
+      
+      // Find the corresponding offer in the database using tokenId
+      const offers = await fetch(`/api/domains/${tokenId}/offers`)
+        .then(res => res.json())
+        .then(data => data.offers || []);
+
+      // Find the most recent pending offer with the matching amount from the same buyer
+      const offer = offers.find((o: any) => 
+        parseFloat(o.amount) === parseFloat(offerAmount) && 
+        o.buyer === message.senderAddress && 
+        o.status === 'PENDING'
+      );
+
+      if (!offer) {
+        throw new Error('Corresponding offer not found in database');
+      }
+
       // Send a system message indicating the offer is being processed
-      const processingMessage = `✅ Offer accepted! Processing transaction...`
+      const processingMessage = `✅ Offer accepted! Processing transaction for ${offerAmount} ETH...`
       await onSendMessage(processingMessage, 'system')
       
-      // In a real implementation, you would:
-      // 1. Extract offer details from the message (amount, buyer address, etc.)
-      // 2. Call Doma's API to create an actual on-chain offer
-      // 3. Update the domain ownership in the database
-      // 4. Notify both parties
-      
-      // For now, we'll simulate the process with a delay
-      setTimeout(async () => {
-        const successMessage = `🎉 Transaction completed! Domain ownership transferred.`
-        await onSendMessage(successMessage, 'system')
-      }, 3000)
+      // Call the API to accept the offer and execute the blockchain transaction
+      const response = await fetch(`/api/offers/${offer.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'accept',
+          sellerAddress: currentUserAddress,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to accept offer');
+      }
+
+      const result = await response.json();
+
+      // Send success message
+      const successMessage = `🎉 Transaction completed! Offer accepted for ${offerAmount} ETH. Transaction hash: ${result.txHash || 'N/A'}`
+      await onSendMessage(successMessage, 'system');
     } catch (error) {
       console.error('Failed to accept offer:', error)
-      const errorMessage = `❌ Failed to process offer: ${error instanceof Error ? error.message : 'Unknown error'}`
-      await onSendMessage(errorMessage, 'system')
+      const errorMessage = `❌ Failed to accept offer: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      await onSendMessage(errorMessage, 'system');
     }
   }
 
@@ -98,19 +186,64 @@ function ChatInterface({
     if (!isOwner) return
     
     try {
-      // Send a system message indicating the offer has been rejected
-      const rejectMessage = `❌ Offer rejected by owner`
-      await onSendMessage(rejectMessage, 'system')
+      // Extract offer amount from the message content
+      const message = messages.find(msg => msg.id === messageId);
+      if (!message) {
+        throw new Error('Message not found');
+      }
+
+      const match = message.content.match(/💰 New offer: ([\d.]+) ETH/);
+      if (!match) {
+        throw new Error('Could not extract offer amount from message');
+      }
+
+      const offerAmount = match[1];
       
-      // In a real implementation, you would:
-      // 1. Extract offer details from the message
-      // 2. Call Doma's API to reject the offer (if there's an on-chain component)
-      // 3. Update the offer status in the database
-      // 4. Notify the buyer
+      // Find the corresponding offer in the database using tokenId
+      const offers = await fetch(`/api/domains/${tokenId}/offers`)
+        .then(res => res.json())
+        .then(data => data.offers || []);
+
+      // Find the most recent pending offer with the matching amount from the same buyer
+      const offer = offers.find((o: any) => 
+        parseFloat(o.amount) === parseFloat(offerAmount) && 
+        o.buyer === message.senderAddress && 
+        o.status === 'PENDING'
+      );
+
+      if (!offer) {
+        throw new Error('Corresponding offer not found in database');
+      }
+
+      // Send a system message indicating the offer is being rejected
+      const rejectMessage = `❌ Offer rejected by owner. Offer for ${offerAmount} ETH has been declined.`
+      await onSendMessage(rejectMessage, 'system');
+      
+      // Call the API to reject the offer
+      const response = await fetch(`/api/offers/${offer.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'reject',
+          sellerAddress: currentUserAddress,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to reject offer');
+      }
+
+      const result = await response.json();
+
+      // Notify that rejection was successful
+      await onSendMessage(`✅ Offer rejection processed successfully.`, 'system');
     } catch (error) {
       console.error('Failed to reject offer:', error)
-      const errorMessage = `❌ Failed to reject offer: ${error instanceof Error ? error.message : 'Unknown error'}`
-      await onSendMessage(errorMessage, 'system')
+      const errorMessage = `❌ Failed to reject offer: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      await onSendMessage(errorMessage, 'system');
     }
   }
 
@@ -140,15 +273,15 @@ function ChatInterface({
               <div key={msg.id} className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                   isOwnMessage ? 'bg-blue-600 text-white' : 
-                  isOfferMessage ? 'bg-green-50 border border-green-200' : 
-                  isSystemMessage ? 'bg-blue-50 border border-blue-200' : 
+                  isOfferMessage ? 'bg-green-100 border border-green-300 text-gray-800' : 
+                  isSystemMessage ? 'bg-blue-100 border border-blue-300 text-gray-800' : 
                   'bg-gray-100 text-gray-800'
                 }`}>
                   {isOfferMessage ? (
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
                         <span className="text-green-600">💰</span>
-                        <span className={isOwnMessage ? 'text-white' : 'text-green-800'}>
+                        <span className={isOwnMessage ? 'text-white' : 'text-green-700 font-medium'}>
                           Offer: {offerAmount} ETH
                         </span>
                       </div>
@@ -161,13 +294,13 @@ function ChatInterface({
                         <div className="flex space-x-2 pt-2">
                           <button
                             onClick={() => handleAcceptOffer(msg.id)}
-                            className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700"
+                            className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 transition-colors"
                           >
                             Accept
                           </button>
                           <button
                             onClick={() => handleRejectOffer(msg.id)}
-                            className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700"
+                            className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 transition-colors"
                           >
                             Reject
                           </button>
@@ -179,7 +312,7 @@ function ChatInterface({
                     </div>
                   ) : (
                     <>
-                      <p className={`text-sm ${isSystemMessage ? 'text-blue-800' : isOwnMessage ? 'text-white' : 'text-gray-800'}`}>
+                      <p className={`text-sm ${isSystemMessage ? 'text-gray-800' : isOwnMessage ? 'text-white' : 'text-gray-800'}`}>
                         {msg.content}
                       </p>
                       <p className={`text-xs mt-1 text-right ${isOwnMessage ? 'text-blue-200' : 'text-gray-500'}`}>
@@ -219,7 +352,7 @@ function ChatInterface({
                   value={offerAmount}
                   onChange={(e) => setOfferAmount(e.target.value)}
                   placeholder="0.1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
                 />
               </div>
               
@@ -231,14 +364,14 @@ function ChatInterface({
                   value={offerMessage}
                   onChange={(e) => setOfferMessage(e.target.value)}
                   placeholder="Add a note with your offer..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-20 resize-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-20 resize-none text-gray-900 bg-white"
                 />
               </div>
               
               <div className="flex space-x-2">
                 <button
                   onClick={() => setShowOfferForm(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-900 rounded-md hover:bg-gray-50"
                 >
                   Cancel
                 </button>
@@ -271,7 +404,7 @@ function ChatInterface({
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type your message..."
-            className="flex-1 border rounded-lg px-3 py-2 text-sm resize-none"
+            className="flex-1 border rounded-lg px-3 py-2 text-sm resize-none text-gray-900 bg-white"
             disabled={isSending}
           />
           <button
@@ -288,7 +421,7 @@ function ChatInterface({
 }
 
 
-export function SupabaseChat({ domainId, ownerAddress, domainName }: SupabaseChatProps) {
+export function SupabaseChat({ domainId, ownerAddress, domainName, tokenId }: SupabaseChatProps) {
   const { address: currentUserAddress, isConnected } = useAccount()
   const isOwner = isConnected && currentUserAddress?.toLowerCase() === ownerAddress.toLowerCase()
 
@@ -297,29 +430,63 @@ export function SupabaseChat({ domainId, ownerAddress, domainName }: SupabaseCha
   const [selectedConvo, setSelectedConvo] = useState<ConversationWithDetails | null>(null)
   const [isInboxLoading, setIsInboxLoading] = useState(true)
 
-  // Fetch all conversations if the current user is the owner
+  // Fetch and subscribe to conversations if the current user is the owner
   useEffect(() => {
-    if (isOwner) {
-      const fetchConversations = async () => {
-        setIsInboxLoading(true)
-        try {
-          const res = await fetch(`/api/chat/conversations-for-domain?domainId=${domainId}`)
-          const data = await res.json()
-          setConversations(data)
-        } catch (error) {
-          console.error("Failed to fetch owner conversations", error)
-        } finally {
-          setIsInboxLoading(false)
-        }
+    if (!isOwner || !domainId) return;
+
+    const fetchConversations = async () => {
+      setIsInboxLoading(true);
+      try {
+        const res = await fetch(`/api/chat/conversations-for-domain?domainId=${domainId}`);
+        if (!res.ok) throw new Error('Failed to fetch conversations');
+        const data = await res.json();
+        setConversations(data);
+      } catch (error) {
+        console.error("Failed to fetch owner conversations", error);
+      } finally {
+        setIsInboxLoading(false);
       }
-      fetchConversations()
-    }
-  }, [isOwner, domainId])
+    };
+
+    // Fetch initial data
+    fetchConversations();
+
+    // Set up real-time subscription
+    const channel = supabase
+      .channel(`conversations_for_domain:${domainId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen to INSERT and UPDATE
+          schema: 'public',
+          table: 'chat_conversations',
+          filter: `domainId=eq.${domainId}`
+        },
+        (payload) => {
+          console.log('Change detected in conversations, refetching...', payload);
+          // Re-fetch the entire list to get updated order and message previews
+          fetchConversations();
+        }
+      )
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log(`Subscribed to conversation updates for domain ${domainId}`);
+        }
+        if (err) {
+          console.error('Subscription error:', err);
+        }
+      });
+
+    // Cleanup subscription on component unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isOwner, domainId]);
 
   // --- BUYER'S VIEW LOGIC ---
   // The buyer only needs to manage one conversation: their own.
   function BuyerView() {
-    const { messages, isLoading, sendMessage } = useRealtimeChat(domainId, currentUserAddress, ownerAddress)
+    const { messages, isLoading, sendMessage, conversationId } = useRealtimeChat(domainId, currentUserAddress, ownerAddress)
     return (
       <ChatInterface 
         messages={messages} 
@@ -329,6 +496,8 @@ export function SupabaseChat({ domainId, ownerAddress, domainName }: SupabaseCha
         domainId={domainId}
         ownerAddress={ownerAddress}
         isOwner={false}
+        conversationId={conversationId}
+        tokenId={tokenId}
       />
     )
   }
@@ -354,8 +523,8 @@ export function SupabaseChat({ domainId, ownerAddress, domainName }: SupabaseCha
                 onClick={() => setSelectedConvo(convo)}
                 className={`p-3 cursor-pointer hover:bg-gray-100 ${selectedConvo?.id === convo.id ? 'bg-blue-50' : ''}`}
               >
-                <p className="font-semibold text-sm">From: {formatAddress(convo.buyerAddress)}</p>
-                <p className="text-xs text-gray-500 truncate">{convo.messages[0]?.content || '...'}</p>
+                <p className="font-semibold text-sm text-gray-800">From: {formatAddress(convo.buyerAddress)}</p>
+                <p className="text-xs text-gray-600 truncate">{convo.messages[0]?.content || '...'}</p>
               </div>
             ))
           )}
@@ -370,6 +539,8 @@ export function SupabaseChat({ domainId, ownerAddress, domainName }: SupabaseCha
               domainId={domainId}
               ownerAddress={ownerAddress}
               isOwner={true}
+              conversationId={selectedConvo.id}
+              tokenId={tokenId}
             />
           ) : (
             <div className="h-full flex items-center justify-center">

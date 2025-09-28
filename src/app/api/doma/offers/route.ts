@@ -22,3 +22,35 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { tokenId, amount, buyerAddress } = body;
+
+    if (!tokenId || !amount || !buyerAddress) {
+      return NextResponse.json(
+        { error: 'Token ID, amount, and buyer address are required' },
+        { status: 400 }
+      );
+    }
+
+    // Convert amount to the proper format for Doma (likely wei)
+    // Assuming 'amount' is in ETH format (like '0.1') and needs to be converted to wei
+    // The domaServerService.createOffer will handle the conversion internally
+
+    const offerResponse = await domaServerService.createOffer(tokenId, amount, buyerAddress);
+    
+    return NextResponse.json({ 
+      success: true,
+      data: offerResponse,
+      message: 'Offer created successfully'
+    });
+  } catch (error: any) {
+    console.error('Error creating offer:', error);
+    return NextResponse.json(
+      { error: 'Failed to create offer', details: error.message },
+      { status: 500 }
+    )
+  }
+}

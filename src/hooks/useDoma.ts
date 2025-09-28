@@ -30,10 +30,7 @@ export function useDoma() {
     if (!address) {
       throw new Error('Wallet not connected')
     }
-    // This needs to be backed by an API route
-    // Example: return await domaApi.createOffer(tokenId, amount, address);
-    throw new Error('createOffer not implemented in the new API structure');
-
+    return await domaApi.createOffer(tokenId, amount, address);
   }
 
   const getOwnershipHistory = async (tokenId: string): Promise<OwnershipHistory[]> => {
@@ -42,11 +39,46 @@ export function useDoma() {
     throw new Error('getOwnershipHistory not implemented in the new API structure');
   }
 
+  // Placeholder functions for offer status checking - these would need full implementation
+  const isOfferActive = async (offerId: string, tokenId: string, useExternalApi: boolean = false): Promise<boolean> => {
+    try {
+      if (useExternalApi) {
+        // This is where you'd check Doma's API for the offer status
+        // For now, returning true as a placeholder
+        return true;
+      }
+      // If not using external API, you might check your own database
+      // This would require a new API endpoint to check offer status
+      throw new Error('isOfferActive with internal checks not fully implemented');
+    } catch (error) {
+      console.error('Error checking if offer is active:', error);
+      return false;
+    }
+  }
+
+  const isOfferExpired = async (offerId: string, tokenId: string, useExternalApi: boolean = false): Promise<boolean> => {
+    try {
+      if (useExternalApi) {
+        // This is where you'd check Doma's API for the offer status
+        // For now, returning false as a placeholder
+        return false;
+      }
+      // If not using external API, you might check your own database
+      // This would require a new API endpoint to check offer status
+      throw new Error('isOfferExpired with internal checks not fully implemented');
+    } catch (error) {
+      console.error('Error checking if offer is expired:', error);
+      return false;
+    }
+  }
+
   return {
     getDomainInfo,
     getOffers,
     createOffer,
     getOwnershipHistory,
+    isOfferActive,
+    isOfferExpired,
     isConnected: !!address
   }
 }
