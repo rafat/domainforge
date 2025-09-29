@@ -4,14 +4,14 @@
 import { useState, useEffect } from 'react'
 import { DomaDomain as Domain } from '@/types/doma'
 
-export function useDomainData(domainId: string, initialDomain?: Domain) {
+export function useDomainData(tokenId: string, initialDomain?: Domain) {
   const [domain, setDomain] = useState<Domain | null>(initialDomain || null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     // If this is a temporary domain (starts with "temp-"), don't fetch from API
-    if (domainId && domainId.startsWith('temp-')) {
+    if (tokenId && tokenId.startsWith('temp-')) {
       // Use initialDomain if provided, otherwise keep the existing domain state
       if (initialDomain) {
         setDomain(initialDomain)
@@ -21,16 +21,16 @@ export function useDomainData(domainId: string, initialDomain?: Domain) {
     }
     
     // Only fetch if we have a valid domainId
-    if (domainId) {
+    if (tokenId) {
       fetchDomainData()
     }
-  }, [domainId, initialDomain])
+  }, [tokenId, initialDomain])
 
   const fetchDomainData = async () => {
     try {
       setLoading(true)
       // Use the tokenId endpoint to fetch domain data
-      const response = await fetch(`/api/domains/${domainId}`)
+      const response = await fetch(`/api/domains/${tokenId}`)
       if (!response.ok) throw new Error('Failed to fetch domain')
       
       const data = await response.json()

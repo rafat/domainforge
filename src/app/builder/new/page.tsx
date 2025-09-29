@@ -225,7 +225,7 @@ export default function NewBuilderPage() {
 
       const result = await response.json();
       // Redirect to the edit page for the newly created/updated domain
-      router.push(`/builder/${result.domain.id}`);
+      router.push(`/builder/${result.domain.tokenId}`);
       return result; // Return the result
     } catch (err: any) {
       console.error('Failed to save domain:', err);
@@ -294,7 +294,7 @@ export default function NewBuilderPage() {
         
         <div className="bg-white rounded-lg shadow-sm p-6">
           <PageEditor 
-            domainId={domain.id} 
+            tokenId={domain.tokenId} 
             initialDomain={domain}
             onSave={handleSave}
           />

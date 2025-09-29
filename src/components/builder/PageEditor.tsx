@@ -13,7 +13,7 @@ import { domaApi } from '@/lib/domaApi'
 import { createDomaListing } from '@/lib/domaOrderbookSdk'
 
 interface PageEditorProps {
-  domainId?: string
+  tokenId?: string
   initialDomain?: DomaDomain
   onSave?: (data: any) => void
 }
@@ -39,9 +39,9 @@ interface FormData {
   acceptOffers: boolean
 }
 
-export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps) {
+export function PageEditor({ tokenId, initialDomain, onSave }: PageEditorProps) {
   const router = useRouter()
-  const { domain, updateDomain } = useDomainData(domainId || '', initialDomain || undefined)
+  const { domain, updateDomain } = useDomainData(tokenId || '', initialDomain || undefined)
   const [formData, setFormData] = useState<FormData>({
     title: initialDomain?.title || '',
     description: initialDomain?.description || '',
@@ -793,7 +793,7 @@ export function PageEditor({ domainId, initialDomain, onSave }: PageEditorProps)
             {publishing ? 'Publishing...' : 'Publish Landing Page'}
           </button>
           
-          {domain?.isActive && domainId && !onSave && domain && (
+          {domain?.isActive && tokenId && !onSave && domain && (
             <div className="text-center text-sm text-green-600 bg-green-50 p-2 rounded">
               {`✅ Page is published! Visit: /landing/${domain.name}`}
             </div>

@@ -31,9 +31,19 @@ export async function POST(
       )
     }
 
-    if (parseFloat(amount) !== parseFloat(domain.price?.toString() || '0')) {
+    // Use buyNowPrice if available, otherwise fallback to price
+    const expectedPrice = domain.buyNowPrice || domain.price?.toString()
+    
+    if (!expectedPrice) {
       return NextResponse.json(
-        { error: 'Incorrect payment amount' },
+        { error: 'No purchase price set for this domain' },
+        { status: 400 }
+      )
+    }
+
+    if (parseFloat(amount) !== parseFloat(expectedPrice)) {
+      return NextResponse.json(
+        { error: `Incorrect payment amount. Expected ${expectedPrice} ETH` },
         { status: 400 }
       )
     }
@@ -51,7 +61,8 @@ export async function POST(
       data: {
         owner: buyer.toLowerCase(),
         forSale: false,
-        price: null
+        price: null,
+        buyNowPrice: null
       }
     })
 

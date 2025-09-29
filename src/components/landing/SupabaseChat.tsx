@@ -7,7 +7,7 @@ import { ChatMessage as PrismaChatMessage, ChatConversation, Domain } from '@pri
 import { formatAddress } from '@/lib/utils'
 import { supabase } from '@/lib/supabase';
 import { useWalletClient } from 'wagmi';
-import { createDomaOffer } from '@/lib/domaOrderbookSdk';
+import { createDomaOffer, fetchDomaCurrencies } from '@/lib/domaOrderbookSdk';
 import { useDomainData } from '@/hooks/useDomainData';
 
 interface SupabaseChatProps {
@@ -67,13 +67,16 @@ function ChatInterface({
 
     setIsSending(true);
     try {
+      // Get supported currencies for the domain using the helper function
+      const currency = await fetchDomaCurrencies(domainData.contractAddress, 'eip155:97476', 'DOMA');
+
       // 1. Create the on-chain offer using the Doma SDK
       const offerResult = await createDomaOffer({
         contractAddress: domainData.contractAddress,
         tokenId: domainData.tokenId,
         price: offerAmount,
         buyerAddress: currentUserAddress,
-      }, walletClient);
+      }, walletClient, 'eip155:97476', undefined, currency);
 
       if (!offerResult?.orders?.[0]?.id) {
         throw new Error('Failed to create on-chain offer or receive order ID.');

@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation'
 import { useWallet } from '@/hooks/useWallet'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import TokenIdDisplay from '@/components/TokenIdDisplay'
+import { SupabaseChat } from '@/components/landing/SupabaseChat'
 import { DomaOffer as Offer, DomaDomain as DomainNFT } from '@/types/doma'
 
 export default function DomainDetailPage() {
@@ -47,6 +48,13 @@ export default function DomainDetailPage() {
   const handleMakeOffer = async () => {
     if (!isConnected || !offerAmount || !domain) return
 
+    // Validate offer amount
+    const offerValue = parseFloat(offerAmount)
+    if (isNaN(offerValue) || offerValue <= 0) {
+      alert('Please enter a valid offer amount')
+      return
+    }
+
     setSubmittingOffer(true)
     try {
       const expiry = new Date()
@@ -60,7 +68,7 @@ export default function DomainDetailPage() {
         body: JSON.stringify({
           tokenId: domain.tokenId,
           buyer: address,
-          amount: parseFloat(offerAmount),
+          amount: offerValue,
           expiry: expiry.toISOString(),
         }),
       })
@@ -70,7 +78,8 @@ export default function DomainDetailPage() {
         setOfferAmount('')
         fetchDomainDetails() // Refresh offers
       } else {
-        alert('Failed to submit offer')
+        const errorData = await response.json()
+        alert(`Failed to submit offer: ${errorData.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Failed to submit offer:', error)
@@ -83,6 +92,14 @@ export default function DomainDetailPage() {
   const handleBuyNow = async () => {
     if (!isConnected || !domain) return
 
+    // Use buyNowPrice if available, otherwise fallback to price
+    const purchasePrice = domain.buyNowPrice || domain.price
+
+    if (!purchasePrice) {
+      alert('No purchase price available for this domain')
+      return
+    }
+
     try {
       const response = await fetch(`/api/domains/${domain.tokenId}/buy`, {
         method: 'POST',
@@ -91,7 +108,7 @@ export default function DomainDetailPage() {
         },
         body: JSON.stringify({
           buyer: address,
-          amount: domain.price,
+          amount: purchasePrice,
         }),
       })
 
@@ -99,7 +116,8 @@ export default function DomainDetailPage() {
         alert('Purchase successful!')
         fetchDomainDetails() // Refresh domain data
       } else {
-        alert('Purchase failed')
+        const errorData = await response.json()
+        alert(`Purchase failed: ${errorData.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Purchase failed:', error)
@@ -133,7 +151,7 @@ export default function DomainDetailPage() {
     )
   }
   const isOwner = address && domain.owner.toLowerCase() === address.toLowerCase()
-  const tabs = ['overview', 'offers', 'activity', 'records']
+  const tabs = ['overview', 'offers', 'activity', 'records', 'chat']
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -184,7 +202,7 @@ export default function DomainDetailPage() {
                   <div className="text-right">
                     <div className="text-sm text-gray-600">Price</div>
                     <div className="text-2xl font-bold text-gray-900">
-                      {domain.price} ETH
+                      {(domain.buyNowPrice || domain.price)} ETH
                     </div>
                   </div>
                   <div className="flex flex-col space-y-2">
@@ -343,7 +361,7 @@ export default function DomainDetailPage() {
                     {domain.forSale && (
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-gray-600">Current Price</span>
-                        <span className="font-medium">{domain.price} ETH</span>
+                        <span className="font-medium">{(domain.buyNowPrice || domain.price)} ETH</span>
                       </div>
                     )}
                   </div>
@@ -571,6 +589,19 @@ export default function DomainDetailPage() {
                   </button>
                 </div>
               )}
+            </div>
+          )}
+          {activeTab === 'chat' && (
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">Chat with Owner</h2>
+              <div className="h-96">
+                <SupabaseChat 
+                  domainId={domain.id} 
+                  ownerAddress={domain.owner} 
+                  domainName={domain.name} 
+                  tokenId={domain.tokenId} 
+                />
+              </div>
             </div>
           )}
         </div>

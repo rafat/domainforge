@@ -18,15 +18,20 @@ import { domaTestnet } from './chains';
 
 // Helper function to create SDK client
 function createClient() {
-  const apiKey = process.env.NEXT_PUBLIC_DOMA_API_KEY || '';
+  // For browser requests, we'll make API calls to our proxy routes
+  // For server-side requests, we can directly use the Doma API
+  const isBrowser = typeof window !== 'undefined';
   
   return createDomaOrderbookClient({
     source: 'domainforge',
     chains: [domaTestnet],
     apiClientOptions: {
-      baseUrl: process.env.NEXT_PUBLIC_DOMA_API_URL || 'https://api-testnet.doma.xyz',
+      // For browser, use our proxy to handle response sanitization
+      baseUrl: isBrowser 
+        ? '' // Will use relative paths to our Next.js API routes
+        : (process.env.DOMA_API_URL || 'https://api-testnet.doma.xyz'), // Server-side direct API
       defaultHeaders: {
-        'Api-Key': apiKey,
+        'Api-Key': process.env.DOMA_API_KEY || '',
       },
     },
   });
@@ -63,19 +68,31 @@ export async function createDomaListing(
     console.log('Doma API Key being used for listing creation');
     
     // Prepare listing parameters - simplified to match working code
+    const listingItem: any = {
+      contract: params.contractAddress,
+      tokenId: params.tokenId,
+      price: currency ? 
+        parseUnits(params.price, currency.decimals).toString() : 
+        parseEther(params.price).toString(),
+      duration: 30 * 24 * 3600 * 1000, // default 30 days in milliseconds
+    };
+    
+    // Handle currencyContractAddress based on currency properties
+    if (currency) {
+      // For native ETH (zero address), set currencyContractAddress to null to avoid balanceOf calls
+      // but still provide the property so the SDK doesn't try to access undefined
+      if (currency.contractAddress === '0x0000000000000000000000000000000000000000') {
+        listingItem.currencyContractAddress = null;
+        console.log('Setting currencyContractAddress to null for native ETH in listing to avoid balanceOf calls');
+      } else {
+        // For other currencies, always include currencyContractAddress
+        listingItem.currencyContractAddress = currency.contractAddress;
+        console.log('Setting currencyContractAddress for ERC-20 token in listing to:', currency.contractAddress);
+      }
+    }
+    
     const listingParams: CreateListingParams = {
-      items: [{
-        contract: params.contractAddress,
-        tokenId: params.tokenId,
-        price: currency ? 
-          parseUnits(params.price, currency.decimals).toString() : 
-          parseEther(params.price).toString(),
-        duration: 30 * 24 * 3600 * 1000, // default 30 days in milliseconds
-        // For native ETH, we should not include currencyContractAddress
-        // For other currencies, include the contract address if available
-        ...(currency && currency.contractAddress && currency.contractAddress !== "0x0000000000000000000000000000000000000000" && 
-          { currencyContractAddress: currency.contractAddress })
-      }],
+      items: [listingItem],
       orderbook: OrderbookType.DOMA,
       source: 'domainforge',
       ...(fees && { marketplaceFees: fees }), // Only include fees if they exist
@@ -120,23 +137,53 @@ export async function createDomaOffer(
 
     const signer = viemToEthersSigner(walletClient, chainId);
     const domaOrderbookClient = createClient();
+    
+    // If no currency is provided, fetch the default currency (ETH) for Doma
+    let resolvedCurrency = currency;
+    if (!currency) {
+      // Default to native ETH for Doma
+      resolvedCurrency = {
+        contractAddress: '0x0000000000000000000000000000000000000000', // Native ETH
+        name: 'Ether',
+        symbol: 'ETH',
+        decimals: 18
+      };
+      console.log('Using default ETH currency for offer creation');
+    } else {
+      // Handle case where API returns currency with null contractAddress (e.g., for native ETH)
+      resolvedCurrency = {
+        ...currency,
+        contractAddress: currency.contractAddress || '0x0000000000000000000000000000000000000000' // Use zero address as fallback for native ETH
+      };
+      console.log('Using provided currency:', resolvedCurrency);
+    }
 
-    // Explicitly define the item to be offered
+    // Explicitly define the item to be offered with all required properties
     const offerItem: any = {
       contract: params.contractAddress,
       tokenId: params.tokenId,
-      duration: 30 * 24 * 3600 * 1000, // 30 days
+      price: resolvedCurrency ? 
+        parseUnits(params.price, resolvedCurrency.decimals).toString() : 
+        parseEther(params.price).toString(),
+      duration: 30 * 24 * 3600 * 1000, // 30 days in milliseconds
     };
 
-    // Explicitly handle currency and price
-    if (currency && currency.contractAddress && currency.contractAddress !== '0x0000000000000000000000000000000000000000') {
-      offerItem.price = parseUnits(params.price, currency.decimals).toString();
-      offerItem.currencyContractAddress = currency.contractAddress;
-    } else {
-      // Default to native ETH
-      offerItem.price = parseEther(params.price).toString();
-      offerItem.currencyContractAddress = '0x0000000000000000000000000000000000000000';
+    // Handle currencyContractAddress based on currency properties
+    if (resolvedCurrency) {
+      // For native ETH (zero address), set currencyContractAddress to null to avoid balanceOf calls
+      // but still provide the property so the SDK doesn't try to access undefined
+      if (resolvedCurrency.contractAddress === '0x0000000000000000000000000000000000000000') {
+        offerItem.currencyContractAddress = null;
+        console.log('Setting currencyContractAddress to null for native ETH to avoid balanceOf calls');
+      } else {
+        // For other currencies, always include currencyContractAddress
+        offerItem.currencyContractAddress = resolvedCurrency.contractAddress;
+        console.log('Setting currencyContractAddress for ERC-20 token to:', resolvedCurrency.contractAddress);
+      }
     }
+    
+    // Log the complete offer item for debugging
+    console.log('Complete offer item:', offerItem);
 
     const offerParams: CreateOfferParams = {
       items: [offerItem],
@@ -211,7 +258,9 @@ export async function acceptDomaOffer(
     buyerAddress: string;
   },
   walletClient: any,
-  chainId: Caip2ChainId = 'eip155:97476'
+  chainId: Caip2ChainId = 'eip155:97476',
+  fees?: any,
+  currency?: any
 ) {
   console.log('Accepting Doma offer by calling buyDomaListing with:', params);
   // Accepting an offer is functionally the same as buying a listing from the offerer
@@ -310,6 +359,85 @@ export async function getDomaSupportedCurrencies(
   } catch (error) {
     console.error('Error fetching Doma supported currencies:', error);
     throw error;
+  }
+}
+
+// Helper function to fetch supported currencies for a domain
+export async function fetchDomaCurrencies(
+  contractAddress: string,
+  chainId: Caip2ChainId = 'eip155:97476',
+  orderbook: string = 'DOMA'
+) {
+  try {
+    const response = await fetch('/api/doma/currencies', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contractAddress,
+        chainId,
+        orderbook,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch currencies: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    
+    // Find ETH currency, prioritizing native ETH over wrapped versions
+    let ethCurrency = result.currencies.find((c: any) => 
+      c.symbol === 'ETH' && 
+      (c.contractAddress === '0x0000000000000000000000000000000000000000' || c.nativeWrapper === true)
+    );
+    
+    // If no native ETH found, try to find any ETH currency
+    if (!ethCurrency) {
+      ethCurrency = result.currencies.find((c: any) => c.symbol === 'ETH');
+    }
+    
+    // Handle case where ETH currency has null contractAddress (for native ETH)
+    if (ethCurrency && ethCurrency.contractAddress === null) {
+      ethCurrency = {
+        ...ethCurrency,
+        contractAddress: '0x0000000000000000000000000000000000000000', // Set to zero address for native ETH
+        nativeWrapper: true
+      };
+    }
+    
+    if (ethCurrency) {
+      return ethCurrency;
+    }
+    
+    // Check first available currency for null contractAddress
+    let firstCurrency = result.currencies[0];
+    if (firstCurrency && firstCurrency.contractAddress === null) {
+      firstCurrency = {
+        ...firstCurrency,
+        contractAddress: '0x0000000000000000000000000000000000000000', // Set to zero address for native ETH
+        nativeWrapper: true
+      };
+    }
+    
+    return firstCurrency || {
+      contractAddress: '0x0000000000000000000000000000000000000000',
+      name: 'Ether',
+      symbol: 'ETH',
+      decimals: 18,
+      nativeWrapper: true
+    };
+  } catch (error) {
+    console.error('Error fetching currencies:', error);
+    // Return default ETH currency if API call fails
+    return {
+      contractAddress: '0x0000000000000000000000000000000000000000',
+      name: 'Ether',
+      symbol: 'ETH',
+      decimals: 18,
+      nativeWrapper: true
+    };
   }
 }
 

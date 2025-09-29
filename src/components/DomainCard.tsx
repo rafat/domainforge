@@ -112,7 +112,7 @@ export default function DomainCard({ domain, onQuickOffer }: DomainCardProps) {
                   View Page
                 </Link>
                 <Link
-                  href={`/builder/${domain.id}`}
+                  href={`/builder/${tokenId}`}
                   className="flex-1 text-center text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition-colors"
                 >
                   Edit Page
@@ -120,7 +120,7 @@ export default function DomainCard({ domain, onQuickOffer }: DomainCardProps) {
               </>
             ) : (
               <Link
-                href={`/builder/${domain.id}`}
+                href={`/builder/${tokenId}`}
                 className="flex-1 text-center text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition-colors"
               >
                 Create Page

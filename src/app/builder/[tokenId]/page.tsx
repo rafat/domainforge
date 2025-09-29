@@ -9,7 +9,7 @@ import LoadingSpinner from '@/components/LoadingSpinner'
 import { DomaDomain } from '@/types/doma'
 
 export default function BuilderPage() {
-  const { domainId } = useParams()
+  const { tokenId } = useParams()
   const router = useRouter()
   const { address, isConnected } = useWallet()
   const [loading, setLoading] = useState(true)
@@ -24,14 +24,14 @@ export default function BuilderPage() {
     
     // Check if user owns this domain
     checkDomainOwnership()
-  }, [isConnected, domainId])
+  }, [isConnected, tokenId])
 
   const checkDomainOwnership = async () => {
-    if (!domainId || !address) return
+    if (!tokenId || !address) return
 
     try {
       setLoading(true)
-      const response = await fetch(`/api/domains/${domainId}`)
+      const response = await fetch(`/api/domains/${tokenId}`)
       
       if (!response.ok) {
         throw new Error('Domain not found')

@@ -33,9 +33,31 @@ export async function POST(request: NextRequest) {
       orderbook: orderbook as OrderbookType,
     });
 
-    // Filter out WETH as in the working example
+    // Process currencies to properly handle native ETH and filter out unwanted ones
+    const processedCurrencies = response.currencies
+      .map((currency: any) => {
+        // Handle case where contractAddress is null (for native ETH)
+        if (currency.contractAddress === null) {
+          return {
+            ...currency,
+            contractAddress: '0x0000000000000000000000000000000000000000', // Zero address for native ETH
+            nativeWrapper: true
+          };
+        }
+        // Explicitly mark native ETH
+        if (currency.contractAddress === '0x0000000000000000000000000000000000000000') {
+          return {
+            ...currency,
+            nativeWrapper: true
+          };
+        }
+        return currency;
+      })
+      // Filter out WETH as it's not needed for our use case
+      .filter((c: any) => c.symbol !== "WETH");
+
     const result = {
-      currencies: response.currencies.filter((c: any) => c.symbol !== "WETH")
+      currencies: processedCurrencies
     };
     
     return NextResponse.json(result);
