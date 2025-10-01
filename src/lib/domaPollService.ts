@@ -101,7 +101,7 @@ export class DomaPollService {
       console.log('Polling Doma events...')
       
       // Poll for events with retry mechanism
-      const response = await this.retryWithBackoff(() => 
+      const response: any = await this.retryWithBackoff(() => 
         domaApi.pollEventsWithTypes(
           eventTypes,
           limit,
@@ -109,7 +109,7 @@ export class DomaPollService {
         )
       )
 
-      if (!response.events || response.events.length === 0) {
+      if (!response || !response.events || response.events.length === 0) {
         console.log('No new events to process')
         return
       }
@@ -123,7 +123,7 @@ export class DomaPollService {
         // Acknowledge the event with retry mechanism
         try {
           await this.retryWithBackoff(() => 
-            domaApi.acknowledgeEventWithResponse(event.id)
+            domaApi.acknowledgeEvent(event.id) // Use correct method name
           )
           console.log(`Acknowledged event ${event.id}`)
           
@@ -184,7 +184,7 @@ export class DomaPollService {
       await this.retryWithBackoff(async () => {
         await prisma.analytics.create({
           data: {
-            tokenId: event.data?.tokenId || 'unknown',
+            tokenId: event.data && event.data.tokenId ? event.data.tokenId : 'unknown',
             eventType: `DOMA_${event.type}`,
             metadata: JSON.stringify(event.data),
             timestamp: new Date(event.timestamp)
@@ -197,7 +197,7 @@ export class DomaPollService {
       try {
         await prisma.analytics.create({
           data: {
-            tokenId: event.data?.tokenId || 'unknown',
+            tokenId: event.data && event.data.tokenId ? event.data.tokenId : 'unknown',
             eventType: `DOMA_EVENT_ERROR`,
             metadata: JSON.stringify({
               eventId: event.id,
@@ -235,7 +235,7 @@ export class DomaPollService {
   private async handleNameTransferred(event: DomaEvent) {
     console.log('Handling NAME_TRANSFERRED event:', event.data)
     // Update domain ownership in our database
-    if (event.data?.tokenId && event.data?.newOwner) {
+    if (event.data && event.data.tokenId && event.data.newOwner) {
       try {
         await this.retryWithBackoff(async () => {
           await prisma.domain.update({
@@ -261,7 +261,7 @@ export class DomaPollService {
   private async handleNameListed(event: DomaEvent) {
     console.log('Handling NAME_LISTED event:', event.data)
     // Update domain listing status in our database
-    if (event.data?.tokenId) {
+    if (event.data && event.data.tokenId) {
       try {
         await this.retryWithBackoff(async () => {
           await prisma.domain.update({
@@ -289,7 +289,7 @@ export class DomaPollService {
   private async handleNameOfferMade(event: DomaEvent) {
     console.log('Handling NAME_OFFER_MADE event:', event.data)
     // Create offer in our database
-    if (event.data?.tokenId && event.data?.buyer && event.data?.amount) {
+    if (event.data && event.data.tokenId && event.data.buyer && event.data.amount) {
       try {
         const domain = await this.retryWithBackoff(async () => {
           return await prisma.domain.findUnique({
@@ -326,7 +326,7 @@ export class DomaPollService {
   private async handleNamePurchased(event: DomaEvent) {
     console.log('Handling NAME_PURCHASED event:', event.data);
     // Update domain ownership and clear listing status
-    if (event.data?.tokenId && event.data?.buyer) {
+    if (event.data && event.data.tokenId && event.data.buyer) {
       try {
         const updatedDomain = await this.retryWithBackoff(async () => {
           return await prisma.domain.update({
@@ -360,18 +360,20 @@ export class DomaPollService {
         })
         
         // Update any pending offers to expired status
-        await this.retryWithBackoff(async () => {
-          await prisma.offer.updateMany({
-            where: {
-              domainId: updatedDomain.id,
-              status: 'PENDING'
-            },
-            data: {
-              status: 'EXPIRED',
-              updatedAt: new Date()
-            }
+        if (updatedDomain) {
+          await this.retryWithBackoff(async () => {
+            await prisma.offer.updateMany({
+              where: {
+                domainId: updatedDomain.id,
+                status: 'PENDING'
+              },
+              data: {
+                status: 'EXPIRED',
+                updatedAt: new Date()
+              }
+            })
           })
-        })
+        }
       } catch (error) {
         console.error(`Failed to update domain ${event.data.tokenId} after purchase:`, error)
       }
@@ -384,7 +386,7 @@ export class DomaPollService {
   private async handleNameCancelled(event: DomaEvent) {
     console.log('Handling NAME_CANCELLED event:', event.data)
     // Update listing status or offer status
-    if (event.data?.tokenId && event.data?.orderId) {
+    if (event.data && event.data.tokenId && event.data.orderId) {
       try {
         // Try to update listing first
         const listingResult = await this.retryWithBackoff(async () => {
@@ -442,7 +444,7 @@ export class DomaPollService {
   private async handleNameExpired(event: DomaEvent) {
     console.log('Handling NAME_EXPIRED event:', event.data)
     // Update domain expiration status
-    if (event.data?.tokenId) {
+    if (event.data && event.data.tokenId) {
       try {
         await this.retryWithBackoff(async () => {
           await prisma.domain.update({
@@ -496,7 +498,7 @@ export class DomaPollService {
    */
   async resetPollingToEvent(eventId: number) {
     try {
-      await domaApi.resetPollingWithResponse(eventId)
+      await domaApi.resetPolling(eventId) // Use correct method name
       this.lastProcessedEventId = eventId
       console.log(`Reset polling to event ${eventId}`)
     } catch (error) {

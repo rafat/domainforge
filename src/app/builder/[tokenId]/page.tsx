@@ -37,7 +37,7 @@ export default function BuilderPage() {
         throw new Error('Domain not found')
       }
       
-      const domain = await response.json()
+      const { domain } = await response.json()
       
       // Check if user owns this domain
       if (domain.owner.toLowerCase() !== address.toLowerCase()) {

@@ -63,6 +63,7 @@ export interface DomaOffer {
   txHash?: string;
   blockNumber?: number;
   updatedAt?: Date;
+  currencySymbol?: string; // Added for UI display
 }
 
 export interface DomaListing {

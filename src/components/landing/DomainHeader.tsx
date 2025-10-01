@@ -3,6 +3,7 @@
 
 import { DomaDomain as Domain } from '@/types/doma'
 import { formatAddress } from '@/lib/utils'
+import { formatWeiToEth } from '@/utils/tokenIdUtils'
 
 interface DomainHeaderProps {
   domain: Domain
@@ -43,7 +44,7 @@ export function DomainHeader({ domain, offers = [] }: DomainHeaderProps) {
             <div className="text-center p-6 bg-blue-50 rounded-lg">
               <h3 className="text-sm font-medium text-blue-800 mb-2">Buy Now</h3>
               <p className="text-2xl font-bold text-blue-600">
-                {domain.buyNowPrice} ETH
+                {formatWeiToEth(domain.buyNowPrice)} ETH
               </p>
             </div>
           )}
@@ -52,7 +53,7 @@ export function DomainHeader({ domain, offers = [] }: DomainHeaderProps) {
           <div className="text-center p-6 bg-green-50 rounded-lg">
             <h3 className="text-sm font-medium text-green-800 mb-2">Highest Offer</h3>
             <p className="text-2xl font-bold text-green-600">
-              {highestOffer ? `${highestOffer.amount} ETH` : '—'}
+              {highestOffer ? `${formatWeiToEth(highestOffer.amount)} ETH` : '—'}
             </p>
             {highestOffer && (
               <p className="text-xs text-green-600 mt-1">

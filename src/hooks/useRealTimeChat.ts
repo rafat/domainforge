@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAccount } from 'wagmi'
 import { supabase } from '@/lib/supabase'
 import { ChatMessage as PrismaChatMessage } from '@prisma/client'
@@ -21,6 +21,7 @@ export function useRealtimeChat(domainId: string, buyerAddress: string | null | 
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [channel, setChannel] = useState<RealtimeChannel | null>(null)
   const [isBrowser, setIsBrowser] = useState(false)
+  const isInitializing = useRef(false);
 
   // Check if we're in the browser
   useEffect(() => {
@@ -30,13 +31,14 @@ export function useRealtimeChat(domainId: string, buyerAddress: string | null | 
   useEffect(() => {
     // This effect is responsible for fetching the conversation ID and historical messages.
     const initializeAndFetchHistory = async () => {
-      if (!buyerAddress || !sellerAddress || !domainId) {
+      if (!buyerAddress || !sellerAddress || !domainId || isInitializing.current) {
         setMessages([]);
         setConversationId(null);
         setIsLoading(false);
         return;
       }
 
+      isInitializing.current = true;
       setIsLoading(true);
       setMessages([]); // Clear old messages immediately
       try {
@@ -62,6 +64,7 @@ export function useRealtimeChat(domainId: string, buyerAddress: string | null | 
         setMessages([]);
       } finally {
         setIsLoading(false);
+        isInitializing.current = false;
       }
     };
 

@@ -1,23 +1,30 @@
 // src/app/domains/[tokenId]/page.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { useWallet } from '@/hooks/useWallet'
 import LoadingSpinner from '@/components/LoadingSpinner'
 import TokenIdDisplay from '@/components/TokenIdDisplay'
 import { SupabaseChat } from '@/components/landing/SupabaseChat'
 import { DomaOffer as Offer, DomaDomain as DomainNFT } from '@/types/doma'
+import { useWalletClient } from 'wagmi'
+import { buyDomaListing } from '@/lib/domaOrderbookSdk'
+import { formatWeiToEth } from '@/utils/tokenIdUtils'
 
 export default function DomainDetailPage() {
   const { tokenId } = useParams()
   const { address, isConnected } = useWallet()
+  const { data: walletClient } = useWalletClient();
   const [domain, setDomain] = useState<DomainNFT | null>(null)
   const [offers, setOffers] = useState<Offer[]>([])
+  const [domaTokenData, setDomaTokenData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
   const [offerAmount, setOfferAmount] = useState('')
   const [submittingOffer, setSubmittingOffer] = useState(false)
+  const [currentListing, setCurrentListing] = useState<any>(null)
+  const [acceptingOffer, setAcceptingOffer] = useState<any | null>(null)
 
   useEffect(() => {
     if (tokenId) {
@@ -28,22 +35,140 @@ export default function DomainDetailPage() {
   const fetchDomainDetails = async () => {
     try {
       setLoading(true)
-      const [domainRes, offersRes] = await Promise.all([
+
+      // Define the GraphQL query to fetch all necessary data from Doma Subgraph
+      const query = `
+        query GetTokenAndDomainData($tokenId: String!) {
+          token(tokenId: $tokenId) {
+            createdAt
+            expiresAt
+            activities {
+              __typename
+              ... on TokenPurchasedActivity {
+                payment {
+                  price
+                  currencySymbol
+                }
+              }
+            }
+            listings {
+              externalId
+              price
+              orderbook
+              currency {
+                symbol
+                decimals
+              }
+            }
+          }
+        }
+      `;
+
+      // Fetch data from our local DB, blockchain offers, and the Doma Subgraph in parallel
+      const [domainRes, domaOffersRes, domaQueryRes] = await Promise.all([
         fetch(`/api/domains/${tokenId}`),
-        fetch(`/api/domains/${tokenId}/offers`)
+        fetch(`/api/doma/offers?tokenId=${tokenId}`),
+        fetch(`/api/doma/query`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query, variables: { tokenId } }),
+        })
       ])
       
       const domainData = await domainRes.json()
-      const offersData = await offersRes.json()
+      const domaOffersData = await domaOffersRes.json()
+      const domaQueryData = await domaQueryRes.json()
+
+      // Combine database offers and blockchain offers
+      const dbOffers = (await fetch(`/api/domains/${tokenId}/offers`).then(res => res.json())).offers || [];
+      const blockchainOffers = domaOffersData.offers || [];
       
+      // Transform blockchain offers to match the expected format
+      const transformedBlockchainOffers = blockchainOffers.map((offer: any) => {
+        // Handle currency conversion - USDC has 6 decimals, WETH has 18 decimals
+        let displayAmount = offer.price;
+        if (offer.currency && (offer.currency.symbol === 'USDC' || offer.currency.symbol === 'USDCe')) {
+          // Convert from USDC raw units to proper decimal format (divide by 10^6)
+          const rawValue = BigInt(offer.price);
+          const integerPart = rawValue / BigInt(10 ** 6);
+          const decimalPart = rawValue % BigInt(10 ** 6);
+          displayAmount = decimalPart > 0 
+            ? (Number(integerPart) + Number(decimalPart) / 1e6).toString() 
+            : integerPart.toString();
+        } else if (offer.currency && (offer.currency.symbol === 'WETH' || offer.currency.symbol === 'ETH')) {
+          // Convert from WETH/ETH raw units to proper decimal format (divide by 10^18)
+          const ethValue = Number(BigInt(offer.price)) / 1e18;
+          displayAmount = ethValue.toString();
+        }
+        
+        return {
+          id: offer.id || offer.externalId, // Use externalId if id doesn't exist
+          externalId: offer.externalId || offer.id, // Ensure externalId is available for blockchain transactions
+          buyer: offer.offererAddress, // Map offererAddress to buyer
+          amount: displayAmount, // Use converted amount for display
+          currencySymbol: offer.currency?.symbol || 'ETH', // Store currency symbol
+          expiresAt: new Date(offer.expiresAt), // Ensure it's a Date object
+          createdAt: new Date(offer.createdAt), // Ensure it's a Date object
+          status: new Date(offer.expiresAt) > new Date() ? 'PENDING' : 'EXPIRED', // Set status based on expiry
+          offererAddress: offer.offererAddress, // Preserve original field name for blockchain functions
+          // Add some default values for fields that don't exist in blockchain offers
+          domainId: undefined,
+          txHash: undefined,
+          blockNumber: undefined,
+          updatedAt: undefined
+        };
+      });
+      
+      // Combine both sets of offers
+      const allOffers = [...dbOffers, ...transformedBlockchainOffers];
+
+      if (domaQueryData.errors) {
+        console.error('Doma Subgraph GraphQL errors:', domaQueryData.errors);
+        throw new Error(domaQueryData.errors[0].message);
+      }
+      if (!domaQueryData.data || !domaQueryData.data.token) {
+        console.error('Unexpected Doma Subgraph response:', domaQueryData);
+        throw new Error('Invalid response from Doma Subgraph');
+      }
+
       setDomain(domainData.domain)
-      setOffers(offersData.offers || [])
+      setOffers(allOffers)
+      console.log('All offers loaded:', allOffers)
+      setDomaTokenData(domaQueryData.data.token)
+
+      // Extract the current listing
+      if (domaQueryData.data.token && domaQueryData.data.token.listings && domaQueryData.data.token.listings.length > 0) {
+        setCurrentListing(domaQueryData.data.token.listings[0]); // Assuming the first listing is the active one
+      } else {
+        setCurrentListing(null);
+      }
+
     } catch (error) {
       console.error('Failed to fetch domain details:', error)
     } finally {
       setLoading(false)
     }
   }
+
+  const { originalPrice } = useMemo(() => {
+    if (!domaTokenData || !domaTokenData.activities) {
+      return { originalPrice: null };
+    }
+
+    const firstPurchaseActivity = domaTokenData.activities.find(
+      (act: any) => act.__typename === 'TokenPurchasedActivity'
+    );
+
+    if (firstPurchaseActivity && firstPurchaseActivity.payment) {
+      const priceInWei = BigInt(firstPurchaseActivity.payment.price);
+      const priceInEth = Number(priceInWei) / 1e18;
+      return {
+        originalPrice: `${priceInEth.toFixed(4)} ${firstPurchaseActivity.payment.currencySymbol}`,
+      };
+    }
+
+    return { originalPrice: null };
+  }, [domaTokenData]);
 
   const handleMakeOffer = async () => {
     if (!isConnected || !offerAmount || !domain) return
@@ -90,7 +215,10 @@ export default function DomainDetailPage() {
   }
 
   const handleBuyNow = async () => {
-    if (!isConnected || !domain) return
+    if (!isConnected || !domain || !currentListing || !walletClient) {
+      alert('Wallet not connected, domain data missing, or no active listing.');
+      return;
+    }
 
     // Use buyNowPrice if available, otherwise fallback to price
     const purchasePrice = domain.buyNowPrice || domain.price
@@ -101,6 +229,17 @@ export default function DomainDetailPage() {
     }
 
     try {
+      // 1. Initiate blockchain transaction to buy the listing
+      const buyResult = await buyDomaListing({
+        orderId: currentListing.externalId, // Use externalId
+        buyerAddress: address!, // Use the connected wallet address as buyer
+      }, walletClient);
+
+      if (!buyResult) {
+        throw new Error('Blockchain transaction failed or returned no result.');
+      }
+
+      // 2. If blockchain transaction is successful, update the database
       const response = await fetch(`/api/domains/${domain.tokenId}/buy`, {
         method: 'POST',
         headers: {
@@ -109,6 +248,8 @@ export default function DomainDetailPage() {
         body: JSON.stringify({
           buyer: address,
           amount: purchasePrice,
+          orderId: currentListing.externalId, // Use externalId
+          txHash: buyResult.transactionHash || 'pending', // Use whatever transaction hash is available
         }),
       })
 
@@ -121,7 +262,75 @@ export default function DomainDetailPage() {
       }
     } catch (error) {
       console.error('Purchase failed:', error)
-      alert('Purchase failed')
+      alert(`Purchase failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
+  const handleAcceptOffer = async (offer: any) => {
+    if (!isConnected || !isOwner) {
+      alert('Only the domain owner can accept offers');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to accept this offer? This will transfer domain ownership.')) {
+      return;
+    }
+
+    setAcceptingOffer(offer);
+    try {
+      console.log('Attempting to accept offer:', offer);
+      
+      // Check if we have the necessary data to accept the offer
+      if (!offer.externalId) {
+        alert('Cannot accept this offer - missing required order ID for blockchain transaction.');
+        return;
+      }
+      
+      // For blockchain offers, we need to use the proper Doma SDK function
+      const { acceptDomaOffer } = await import('@/lib/domaOrderbookSdk');
+      
+      if (!walletClient) {
+        throw new Error('Wallet client not available');
+      }
+
+      console.log('Calling acceptDomaOffer with orderId:', offer.externalId);
+      const result = await acceptDomaOffer(
+        offer.externalId,  // Pass orderId directly as first parameter
+        walletClient       // walletClient as second parameter
+        // chainId as third parameter (using default)
+      );
+
+      if (result) {
+        // After successful offer acceptance, remove the domain and related data from our database
+        // since the domain ownership has transferred and is no longer managed by this seller
+        if (domain) {
+          try {
+            // Delete the domain and all its related records (cascade delete)
+            // This will remove: offers, transactions, dns_records, chat_conversations
+            await fetch(`/api/domains/${domain.tokenId}`, {
+              method: 'DELETE',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            console.log('Domain and related records removed from database successfully');
+          } catch (removeError) {
+            console.warn('Failed to remove domain and related data from database:', removeError);
+            // Continue even if database removal fails
+          }
+        }
+        
+        alert('Offer accepted successfully on blockchain! Domain ownership transferred.');
+        fetchDomainDetails(); // Refresh domain and offers data
+      } else {
+        throw new Error('Failed to accept offer on blockchain');
+      }
+    } catch (error) {
+      console.error('Failed to accept offer:', error);
+      // Provide detailed error message
+      alert(`Failed to accept offer: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setAcceptingOffer(null);
     }
   }
 
@@ -150,7 +359,12 @@ export default function DomainDetailPage() {
       </div>
     )
   }
-  const isOwner = address && domain.owner.toLowerCase() === address.toLowerCase()
+  const isOwner = address && (
+    domain.owner.toLowerCase() === address.toLowerCase() || 
+    domain.owner.toLowerCase() === `eip155:97476:${address}`.toLowerCase() ||
+    domain.owner.toLowerCase().replace(/^eip155:97476:/, '') === address.toLowerCase()
+  )
+  console.log('Owner check:', { address, domainOwner: domain?.owner, isOwner })
   const tabs = ['overview', 'offers', 'activity', 'records', 'chat']
   return (
     <div className="min-h-screen bg-gray-50">
@@ -173,7 +387,7 @@ export default function DomainDetailPage() {
                     </span>
                     <span className="text-gray-400">•</span>
                     <span className="text-gray-600">
-                      Expires: {domain.expiry ? new Date(domain.expiry).toLocaleDateString() : 'N/A'}
+                      Expires: {domaTokenData?.expiresAt ? new Date(domaTokenData.expiresAt).toISOString().split('T')[0] : 'N/A'}
                     </span>
                   </div>
                 </div>
@@ -202,7 +416,7 @@ export default function DomainDetailPage() {
                   <div className="text-right">
                     <div className="text-sm text-gray-600">Price</div>
                     <div className="text-2xl font-bold text-gray-900">
-                      {(domain.buyNowPrice || domain.price)} ETH
+                      {formatWeiToEth(domain.buyNowPrice || domain.price || '0')} ETH
                     </div>
                   </div>
                   <div className="flex flex-col space-y-2">
@@ -305,13 +519,13 @@ export default function DomainDetailPage() {
                     <div>
                       <dt className="text-sm font-medium text-gray-500">Registration Date</dt>
                       <dd className="mt-1 text-sm text-gray-900">
-                        {new Date(domain.registrationDate).toLocaleDateString()}
+                        {domaTokenData?.createdAt ? new Date(domaTokenData.createdAt).toISOString().split('T')[0] : 'N/A'}
                       </dd>
                     </div>
                     <div>
                       <dt className="text-sm font-medium text-gray-500">Expiry Date</dt>
                       <dd className="mt-1 text-sm text-gray-900">
-                        {domain.expiry ? new Date(domain.expiry).toLocaleDateString() : 'N/A'}
+                        {domaTokenData?.expiresAt ? new Date(domaTokenData.expiresAt).toISOString().split('T')[0] : 'N/A'}
                       </dd>
                     </div>
                     <div>
@@ -354,14 +568,16 @@ export default function DomainDetailPage() {
                 <div className="bg-white rounded-lg shadow-sm p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Price History</h3>
                   <div className="space-y-3">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-gray-600">Original Mint</span>
-                      <span className="font-medium">0.5 ETH</span>
-                    </div>
+                    {originalPrice && (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-gray-600">Original Price</span>
+                        <span className="font-medium">{originalPrice}</span>
+                      </div>
+                    )}
                     {domain.forSale && (
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-gray-600">Current Price</span>
-                        <span className="font-medium">{(domain.buyNowPrice || domain.price)} ETH</span>
+                        <span className="font-medium">{formatWeiToEth(domain.buyNowPrice || domain.price || '0')} ETH</span>
                       </div>
                     )}
                   </div>
@@ -406,16 +622,50 @@ export default function DomainDetailPage() {
                           <div className="flex justify-between items-center">
                             <div>
                               <div className="font-medium text-gray-900">
-                                {offer.amount} ETH
+                                {offer.amount} {offer.currencySymbol || 'ETH'}
                               </div>
                               <div className="text-sm text-gray-600">
                                 From {offer.buyer ? `${offer.buyer.slice(0, 8)}...${offer.buyer.slice(-6)}` : 'Unknown'}
                               </div>
                             </div>
-                            <div className="text-right">
+                            <div className="flex flex-col items-end space-y-2">
                               <div className="text-sm text-gray-600">
-                                Expires {offer.expiresAt ? new Date(offer.expiresAt).toLocaleDateString() : 'N/A'}
+                                {offer.expiresAt && new Date(offer.expiresAt) > new Date() 
+                                  ? `Expires ${new Date(offer.expiresAt).toLocaleDateString()}` 
+                                  : 'Expired'}
                               </div>
+                              {(() => {
+                                // Safely handle date parsing
+                                const offerExpiresAt = offer.expiresAt ? new Date(offer.expiresAt) : null;
+                                const now = new Date();
+                                const isExpired = offerExpiresAt ? offerExpiresAt <= now : true;
+                                
+                                console.log('Offer debug:', {
+                                  offerId: offer.id,
+                                  isOwner,
+                                  status: offer.status,
+                                  expiresAt: offer.expiresAt,
+                                  offerExpiresAt: offerExpiresAt,
+                                  isExpired,
+                                  conditions: {
+                                    isOwner,
+                                    isPending: offer.status === 'PENDING',
+                                    notExpired: !isExpired
+                                  }
+                                });
+                                return (
+                                  isOwner && 
+                                  offer.status === 'PENDING' && 
+                                  !isExpired && ( // Allow accepting offers
+                                  <button
+                                    onClick={() => handleAcceptOffer(offer)}
+                                    disabled={acceptingOffer && acceptingOffer.id === offer.id}
+                                    className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {acceptingOffer && acceptingOffer.id === offer.id ? 'Accepting...' : 'Accept Offer'}
+                                  </button>
+                                ));
+                              })()}
                             </div>
                           </div>
                         </div>
@@ -514,7 +764,7 @@ export default function DomainDetailPage() {
                       <div className="flex justify-between items-start">
                         <div>
                           <p className="font-medium text-gray-900">Listed for Sale</p>
-                          <p className="text-sm text-gray-600">Price: {domain.price} ETH</p>
+                          <p className="text-sm text-gray-600">Price: {formatWeiToEth(domain.price || '0')} ETH</p>
                         </div>
                         <span className="text-sm text-gray-500">Recent</span>
                       </div>
@@ -597,7 +847,7 @@ export default function DomainDetailPage() {
               <div className="h-96">
                 <SupabaseChat 
                   domainId={domain.id} 
-                  ownerAddress={domain.owner} 
+                  ownerAddress={domain.owner.trim()} 
                   domainName={domain.name} 
                   tokenId={domain.tokenId} 
                 />

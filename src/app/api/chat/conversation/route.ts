@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 
+function normalizeAddress(address: string): string {
+  if (address.startsWith('eip155:97476:')) {
+    return address.substring('eip155:97476:'.length);
+  }
+  return address;
+}
+
 export async function POST(request: Request) {
   try {
     const { domainId, buyerAddress, sellerAddress } = await request.json()
@@ -9,28 +16,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const lowerBuyerAddress = buyerAddress.toLowerCase()
-    const lowerSellerAddress = sellerAddress.toLowerCase()
+    console.log('Request to /api/chat/conversation with body:', { domainId, buyerAddress, sellerAddress });
 
-    // --- ROBUSTNESS FIX ---
-    // Find a conversation where the participants match in either role.
-    // This prevents creating duplicate conversations if a user is both a buyer and seller in different contexts.
-    let conversation = await prisma.chatConversation.findFirst({
+    const normalizedBuyerAddress = normalizeAddress(buyerAddress).trim().toLowerCase();
+    const normalizedSellerAddress = normalizeAddress(sellerAddress).trim().toLowerCase();
+
+    let conversation = await prisma.chatConversation.findUnique({
       where: {
-        domainId,
-        // The AND/OR logic ensures we find the conversation regardless of who initiated it.
-        OR: [
-          {
-            buyerAddress: lowerBuyerAddress,
-            sellerAddress: lowerSellerAddress,
-          },
-          {
-            buyerAddress: lowerSellerAddress,
-            sellerAddress: lowerBuyerAddress,
-          },
-        ],
+        domainId_buyerAddress_sellerAddress: {
+          domainId,
+          buyerAddress: normalizedBuyerAddress,
+          sellerAddress: normalizedSellerAddress,
+        }
       },
     })
+
+    if (!conversation) {
+      // if not found, try swapping buyer and seller
+      conversation = await prisma.chatConversation.findUnique({
+        where: {
+          domainId_buyerAddress_sellerAddress: {
+            domainId,
+            buyerAddress: normalizedSellerAddress,
+            sellerAddress: normalizedBuyerAddress,
+          }
+        },
+      })
+    }
 
     if (!conversation) {
       // Only create a new conversation if one was NOT found.
@@ -38,13 +50,11 @@ export async function POST(request: Request) {
       conversation = await prisma.chatConversation.create({
         data: {
           domainId,
-          buyerAddress: lowerBuyerAddress,
-          sellerAddress: lowerSellerAddress,
+          buyerAddress: normalizedBuyerAddress,
+          sellerAddress: normalizedSellerAddress,
           xmtpConversationId: `chat-${domainId}-${Date.now()}`,
         },
       })
-    } else {
-      console.log(`Found existing conversation: ${conversation.id}`);
     }
 
     return NextResponse.json(conversation)

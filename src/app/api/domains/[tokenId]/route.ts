@@ -4,39 +4,23 @@ import { prisma } from '@/lib/db'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ tokenId: string }> }
+  { params }: { params: { tokenId: string } }
 ) {
-  const { tokenId } = await params
 
   try {
+    const { tokenId } = params
     const domain = await prisma.domain.findUnique({
       where: { tokenId },
-      include: {
-        dnsRecords: true,
-        offers: true
-      }
+      include: { offers: true }
     })
 
     if (!domain) {
-      return NextResponse.json(
-        { error: 'Domain not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Domain not found' }, { status: 404 })
     }
-
-    // Increment view count
-    await prisma.domain.update({
-      where: { tokenId },
-      data: {
-        views: {
-          increment: 1
-        }
-      }
-    })
 
     return NextResponse.json({ domain })
   } catch (error) {
-    console.error('Failed to fetch domain:', error)
+    console.error(`Failed to fetch domain with tokenId ${params.tokenId}:`, error)
     return NextResponse.json(
       { error: 'Failed to fetch domain' },
       { status: 500 }
@@ -46,64 +30,84 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ tokenId: string }> }
+  { params }: { params: { tokenId: string } }
 ) {
-  const { tokenId } = await params
-
   try {
+    const { tokenId } = params
     const body = await request.json()
-    console.log('PUT request body:', body);
-    const { price, forSale, records, isActive, title, description, template, buyNowPrice, acceptOffers, customCSS } = body
 
-    const updateData: any = {}
-    
-    if (price !== undefined) updateData.price = price
-    if (forSale !== undefined) updateData.forSale = forSale
-    if (isActive !== undefined) updateData.isActive = isActive
-    if (title !== undefined) updateData.title = title
-    if (description !== undefined) updateData.description = description
-    if (template !== undefined) updateData.template = template
-    if (buyNowPrice !== undefined) updateData.buyNowPrice = buyNowPrice
-    if (acceptOffers !== undefined) updateData.acceptOffers = acceptOffers
-    if (customCSS !== undefined) updateData.customCSS = customCSS
+    const {
+      title,
+      description,
+      template,
+      buyNowPrice,
+      acceptOffers,
+      customCSS,
+      isActive,
+      forSale
+    } = body
 
-    console.log('updateData:', updateData);
-    console.log('tokenId:', tokenId);
-
-    const domain = await prisma.domain.update({
-      where: { tokenId },
-      data: updateData,
-      include: {
-        dnsRecords: true,
-        offers: true
-      }
-    })
-
-    console.log('Updated domain:', domain);
-
-    // Update DNS records if provided
-    if (records && Array.isArray(records)) {
-      // Delete existing records
-      await prisma.dnsRecord.deleteMany({
-        where: { domainId: domain.id }
-      })
-
-      // Create new records
-      if (records.length > 0) {
-        await prisma.dnsRecord.createMany({
-          data: records.map((record: any) => ({
-            ...record,
-            domainId: domain.id
-          }))
-        })
-      }
+    const dataToUpdate: { [key: string]: any } = {
+      updatedAt: new Date()
     }
 
-    return NextResponse.json({ domain })
+    if (title !== undefined) dataToUpdate.title = title
+    if (description !== undefined) dataToUpdate.description = description
+    if (template !== undefined) dataToUpdate.template = template
+    if (acceptOffers !== undefined) dataToUpdate.acceptOffers = acceptOffers
+    if (customCSS !== undefined) dataToUpdate.customCSS = customCSS
+    if (isActive !== undefined) dataToUpdate.isActive = isActive
+    if (forSale !== undefined) dataToUpdate.forSale = forSale
+
+    // Handle buyNowPrice: if it's an empty string or null, store null. Otherwise, store the string value.
+    if (buyNowPrice !== undefined) {
+      dataToUpdate.buyNowPrice = buyNowPrice === '' ? null : buyNowPrice
+    }
+    
+    const updatedDomain = await prisma.domain.update({
+      where: { tokenId },
+      data: dataToUpdate
+    })
+
+    return NextResponse.json({ domain: updatedDomain })
   } catch (error) {
-    console.error('Failed to update domain:', error)
+    console.error(`Failed to update domain with tokenId ${params.tokenId}:`, error)
     return NextResponse.json(
       { error: 'Failed to update domain' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { tokenId: string } }
+) {
+  try {
+    const { tokenId } = params
+    
+    // Find the domain first to ensure it exists
+    const domain = await prisma.domain.findUnique({
+      where: { tokenId },
+    })
+    
+    if (!domain) {
+      return NextResponse.json({ error: 'Domain not found' }, { status: 404 })
+    }
+    
+    // Delete the domain and all related records (cascade delete)
+    // Prisma will handle cascading deletes based on the schema relationships
+    await prisma.domain.delete({
+      where: { tokenId },
+    })
+    
+    return NextResponse.json({ 
+      message: 'Domain and related records deleted successfully' 
+    })
+  } catch (error) {
+    console.error(`Failed to delete domain with tokenId ${params.tokenId}:`, error)
+    return NextResponse.json(
+      { error: 'Failed to delete domain', details: (error as Error).message },
       { status: 500 }
     )
   }

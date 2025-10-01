@@ -92,7 +92,7 @@ export function OffersList({ tokenId, onOfferAction }: OffersListProps) {
                       <div>
                         <p className="font-medium text-gray-900">
                           {/* FIX: Use the nullish coalescing operator (??) to provide '0' as a default */}
-                          {formatPrice(offer.amount ?? '0')} ETH
+                          {formatPrice(formatWeiToEth(offer.amount ?? '0'))} ETH
                         </p>
                         <p className="text-sm text-gray-500">
                           from {getFormattedAddress(offer.buyer)}

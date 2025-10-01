@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { domaServerService } from '@/lib/doma.server'
+import { parseEther, formatEther } from 'viem'
 
 export async function GET(
   request: NextRequest,
@@ -57,8 +58,17 @@ export async function GET(
       // Domain is listed for sale
       const activeListing = activeListings[0] // Take the first active listing
       updateData.forSale = true
-      updateData.buyNowPrice = activeListing.price.toString()
-      updateData.price = parseFloat(activeListing.price.toString())
+      // Convert price from wei (BigInt string) to ETH for both buyNowPrice and price
+      // Store buyNowPrice as a string ETH value for consistency
+      const ethPrice = formatEther(BigInt(activeListing.price));
+      updateData.buyNowPrice = ethPrice;
+      // Convert price from wei (BigInt string) to ETH (float) for display/storage
+      // Use formatEther as activeListing.price is in wei
+      if (activeListing.currency && activeListing.currency.decimals) {
+        updateData.price = parseFloat(ethPrice);
+      } else {
+        updateData.price = parseFloat(ethPrice);
+      }
     } else {
       // No active listings
       updateData.forSale = false

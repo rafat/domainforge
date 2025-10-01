@@ -10,7 +10,7 @@ export async function POST(
 
   try {
     const body = await request.json()
-    const { buyer, amount } = body
+    const { buyer, amount, txHash } = body
 
     // Get domain details
     const domain = await prisma.domain.findUnique({
@@ -73,8 +73,8 @@ export async function POST(
         buyer: buyer.toLowerCase(),
         seller: domain.owner,
         amount: amount,
-        txHash: `0x${Math.random().toString(16).substr(2, 64)}`,
-        status: 'PENDING'
+        txHash: txHash,
+        status: 'COMPLETED'
       }
     })
 

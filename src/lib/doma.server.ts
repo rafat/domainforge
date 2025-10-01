@@ -394,7 +394,9 @@ export class DomaService {
   
   async getOrderBookOffers(tokenId: string, useCache: boolean = false): Promise<DomaOffer[]> {
     try {
+      console.log('Server - Fetching order book offers for tokenId:', tokenId);
       const offersResponse = await domaApiClient.getOffers(tokenId, 'ACTIVE', useCache)
+      console.log('Server - Offers response from domaApiClient.getOffers:', offersResponse);
       return offersResponse.items || []
     } catch (error: any) {
       throw new Error(`Failed to fetch offers: ${error.message}`)

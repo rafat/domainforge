@@ -5,7 +5,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useWallet } from '@/hooks/useWallet'
 import { DomaDomain as DomainNFT } from '@/types/doma'
-import { formatTokenIdDisplay } from '@/utils/tokenIdUtils'
+import { formatTokenIdDisplay, formatWeiToEth } from '@/utils/tokenIdUtils'
 
 interface DomainCardProps {
   domain: DomainNFT
@@ -59,7 +59,7 @@ export default function DomainCard({ domain, onQuickOffer }: DomainCardProps) {
           </div>
           {domain.price && (
             <div className="text-right">
-              <p className="text-2xl font-bold text-green-600">{domain.price} ETH</p>
+              <p className="text-2xl font-bold text-green-600">{formatWeiToEth(domain.price)} ETH</p>
               <p className="text-sm text-gray-500">Buy Now</p>
             </div>
           )}

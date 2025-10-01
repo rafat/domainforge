@@ -8,6 +8,7 @@ import LoadingSpinner from '@/components/LoadingSpinner'
 import ConnectWalletButton from '@/components/ConnectWalletButton'
 import { DomaDomain as DomainNFT, DomaOffer as Offer } from '@/types/doma'
 import { useDomaBlockchainDomains } from '@/hooks/useDomaBlockchainDomains'
+import { formatWeiToEth } from '@/utils/tokenIdUtils'
 
 export default function ProfilePage() {
   const { address: walletAddress, isConnected } = useWallet()
@@ -297,7 +298,7 @@ export default function ProfilePage() {
                               Offer from {offer.buyer ? `${offer.buyer.slice(0, 6)}...${offer.buyer.slice(-4)}` : 'Unknown'}
                             </p>
                             <div className="mt-2 flex items-center space-x-4 text-sm text-gray-500">
-                              <span>Amount: {offer.amount} ETH</span>
+                              <span>Amount: {formatWeiToEth(offer.amount)} ETH</span>
                               <span>•</span>
                               <span>Expires: {new Date(offer.expiresAt).toLocaleDateString()}</span>
                             </div>

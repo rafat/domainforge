@@ -36,6 +36,7 @@ export async function POST(
       where: { tokenId },
       data: {
         price: parseFloat(price),
+        buyNowPrice: price.toString(), // Store the exact price input as buyNowPrice
         forSale: true
       }
     })

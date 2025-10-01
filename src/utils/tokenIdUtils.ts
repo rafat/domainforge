@@ -56,3 +56,35 @@ export function formatTokenIdDisplay(tokenId: string, maxLength: number = 20): s
   // For moderately long token IDs, show first 10 and last 6 characters
   return `${tokenId.slice(0, 10)}...${tokenId.slice(-6)}`;
 }
+
+// Helper function to format price from Wei to ETH
+export function formatWeiToEth(weiValue: string | number | undefined | null): string {
+  if (!weiValue) return '0';
+  
+  const weiStr = weiValue.toString();
+  
+  // Check if this looks like a Wei value (large integer string)
+  if (weiStr.length > 10 && !weiStr.includes('.')) {
+    // Convert from Wei to ETH (1 ETH = 10^18 Wei)
+    try {
+      const weiBig = BigInt(weiStr);
+      const ethValue = Number(weiBig) / 1e18;
+      
+      // Format to up to 6 decimal places, removing trailing zeros
+      return parseFloat(ethValue.toFixed(6)).toString();
+    } catch (e) {
+      // If BigInt conversion fails, return the original value
+      return weiStr;
+    }
+  }
+  
+  // If it already looks like an ETH value, return as is but format consistently
+  const numValue = parseFloat(weiStr);
+  if (!isNaN(numValue)) {
+    // Format to up to 6 decimal places, removing trailing zeros
+    return parseFloat(numValue.toFixed(6)).toString();
+  }
+  
+  // If it's not a valid number, return as is
+  return weiStr;
+}

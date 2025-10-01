@@ -133,90 +133,21 @@ export default function NewBuilderPage() {
 
   const handleSave = async (domainData: any) => {
     try {
-      // Always fetch the actual tokenId from Doma API to ensure we have the correct one
-      // This is important because tokenIds can get shortened in URL parameters
-      let actualTokenId: string;
-      
-      try {
-        actualTokenId = await getActualTokenId(domainName || '');
-      } catch (error) {
-        console.error('Failed to fetch actual token ID, falling back to provided ID:', error);
-        // If we can't fetch the actual token ID, fall back to using the domain's current token ID
-        actualTokenId = domain?.tokenId || tokenId || '';
-      }
-      
-      // Validate that we have a token ID
-      if (!actualTokenId) {
-        throw new Error('No valid token ID available');
-      }
-      
-      // Check if this is a temporary domain (starts with "temp-")
-      const isTempDomain = domain?.id.startsWith('temp-');
-      
-      let response;
-      
-      if (isTempDomain) {
-        // For temporary domains, we need to either create or update
-        // First, check if a domain with this name already exists
-        const checkResponse = await fetch(`/api/domains?name=${encodeURIComponent(domainName || '')}`);
-        
-        if (checkResponse.ok) {
-          const checkData = await checkResponse.json();
-          const existingDomain = checkData.domains?.find((d: any) => d.name === domainName);
-          
-          if (existingDomain) {
-            // Update existing domain with actual tokenId
-            response = await fetch(`/api/domains/${existingDomain.tokenId}`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                ...domainData
-              }),
-            });
-          } else {
-            // Create new domain with actual tokenId
-            response = await fetch('/api/domains', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                name: domainName,
-                tokenId: actualTokenId,
-                owner: address,
-                ...domainData
-              }),
-            });
-          }
-        } else {
-          // Fallback to creating new domain with actual tokenId
-          response = await fetch('/api/domains', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              name: domainName,
-              tokenId: actualTokenId,
-              owner: address,
-              ...domainData
-            }),
-          });
-        }
-      } else {
-        // For existing domains, update the record with actual tokenId
-        response = await fetch(`/api/domains/${actualTokenId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            ...domainData
-          }),
-        });
-      }
+      // The backend /api/domains POST endpoint is designed to handle both creation
+      // and updates for existing domains owned by the same user (upsert logic).
+      // We can simplify this function by always POSTing.
+      const response = await fetch('/api/domains', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: domainName,
+          tokenId: domain?.tokenId || tokenId,
+          owner: address,
+          ...domainData
+        }),
+      });
 
       if (!response.ok) {
         const errorData = await response.json();

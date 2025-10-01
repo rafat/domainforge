@@ -1,7 +1,7 @@
 // src/components/builder/PageEditor.tsx
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDomainData } from '@/hooks/useDomainData'
 import { TemplateSelector } from './TemplateSelector'
@@ -62,32 +62,28 @@ export function PageEditor({ tokenId, initialDomain, onSave }: PageEditorProps) 
     layoutSpacing: 'normal',
     textAlign: 'center'
   })
-  
-  // Update formData when domain data loads
+
+  const isInitialized = useRef(false);
+
+  // This effect will run when the tokenId changes, resetting the initialization flag.
   useEffect(() => {
-    if (domain) {
-      setFormData({
-        title: domain.title || '',
-        description: domain.description || '',
-        template: domain.template || 'minimal',
-        buyNowPrice: domain.buyNowPrice || '',
-        acceptOffers: domain.acceptOffers !== undefined ? domain.acceptOffers : true
-      });
-    }
-  }, [domain]);
-  
-  // Update formData when initialDomain changes
+    isInitialized.current = false;
+  }, [tokenId]);
+
+  // This effect now safely initializes the form data once per page load.
   useEffect(() => {
-    if (initialDomain) {
+    const source = domain || initialDomain;
+    if (source && !isInitialized.current) {
       setFormData({
-        title: initialDomain.title || '',
-        description: initialDomain.description || '',
-        template: initialDomain.template || 'minimal',
-        buyNowPrice: initialDomain.buyNowPrice || '',
-        acceptOffers: initialDomain.acceptOffers !== undefined ? initialDomain.acceptOffers : true
+        title: source.title || '',
+        description: source.description || '',
+        template: source.template || 'minimal',
+        buyNowPrice: source.buyNowPrice || '',
+        acceptOffers: source.acceptOffers !== undefined ? source.acceptOffers : true,
       });
+      isInitialized.current = true;
     }
-  }, [initialDomain]);
+  }, [domain, initialDomain, tokenId]);
   
   const [activeTab, setActiveTab] = useState<'content' | 'design' | 'settings'>('content')
   const [saving, setSaving] = useState(false)
@@ -106,25 +102,16 @@ export function PageEditor({ tokenId, initialDomain, onSave }: PageEditorProps) 
       // If onSave callback is provided, use it (for new domains)
       if (onSave) {
         console.log('Using onSave callback');
-        // Save the domain data first
-        const saveResult: any = await onSave({
-          ...formData,
-          isActive: true,
-          forSale: true, // Set forSale to true when publishing
-          customCSS: JSON.stringify(customization)
-        })
         
-        // Extract the domain from the save result
-        const savedDomain = saveResult?.domain || saveResult;
-        
-        // If we have a buyNowPrice and wallet client, create a listing
-        if (formData.buyNowPrice && walletClient && savedDomain?.tokenId) {
+        // If we have a buyNowPrice and wallet client, create a listing FIRST
+        let listingResult = null;
+        if (formData.buyNowPrice && walletClient && initialDomain?.tokenId) {
           console.log('Debug - Connected wallet:', walletClient.account.address);
-          console.log('Debug - Domain owner:', savedDomain.owner);
+          console.log('Debug - Domain owner:', initialDomain.owner);
           
           // Check if the connected wallet is the owner of the domain
-          if (walletClient.account.address.toLowerCase() !== savedDomain.owner.toLowerCase()) {
-            alert(`You must be the owner of this domain to list it for sale. Connected wallet: ${walletClient.account.address}, Domain owner: ${savedDomain.owner}`)
+          if (walletClient.account.address.toLowerCase() !== initialDomain.owner.toLowerCase()) {
+            alert(`You must be the owner of this domain to list it for sale. Connected wallet: ${walletClient.account.address}, Domain owner: ${initialDomain.owner}`)
             setPublishing(false)
             return
           }
@@ -187,13 +174,13 @@ export function PageEditor({ tokenId, initialDomain, onSave }: PageEditorProps) 
               };
             }
 
-            // Create listing using Doma Orderbook SDK
-            const listingResult = await createDomaListing(
+            // Create listing using Doma Orderbook SDK FIRST
+            listingResult = await createDomaListing(
               {
                 contractAddress: contractAddress,
-                tokenId: savedDomain.tokenId,
+                tokenId: initialDomain.tokenId,
                 price: formData.buyNowPrice,
-                sellerAddress: savedDomain.owner,
+                sellerAddress: initialDomain.owner,
               },
               walletClient,
               'eip155:97476',
@@ -214,38 +201,50 @@ export function PageEditor({ tokenId, initialDomain, onSave }: PageEditorProps) 
                 console.error('Error status:', (listingError as any).status);
               }
             }
-            alert(`Domain published but failed to list: ${listingError instanceof Error ? listingError.message : 'Unknown error'}`);
+            alert(`Failed to list domain on blockchain: ${listingError instanceof Error ? listingError.message : 'Unknown error'}`);
+            setPublishing(false);
+            return; // Don't proceed with saving to database if blockchain listing fails
           }
         }
+        
+        // ONLY save to database AFTER successful blockchain listing
+        const saveResult: any = await onSave({
+          ...formData,
+          isActive: true,
+          forSale: true, // Set forSale to true when publishing
+          customCSS: JSON.stringify(customization)
+        })
+        
+        // Extract the domain from the save result
+        const savedDomain = saveResult?.domain || saveResult;
         
         return
       }
       
       // Otherwise, update existing domain using domain name
       console.log('Updating existing domain');
-      console.log('formData:', formData);
+      console.log('Current formData state:', formData);
+      console.log('Data being sent to updateDomain:', { 
+        ...formData, 
+        isActive: true,
+        forSale: true,
+        customCSS: JSON.stringify(customization)
+      });
       console.log('customization:', customization);
       console.log('domain:', domain);
       if (!domain?.tokenId) {
         throw new Error('Domain tokenId is required')
       }
       
-      const updatedDomain = await updateDomain(domain.tokenId, { 
-        ...formData, 
-        isActive: true,
-        forSale: true,
-        customCSS: JSON.stringify(customization)
-      })
-      console.log('Domain updated, updatedDomain:', updatedDomain);
-      
-      // If we have a buyNowPrice and wallet client, create a listing
-      if (formData.buyNowPrice && walletClient && updatedDomain?.tokenId) {
+      // If we have a buyNowPrice and wallet client, create a listing FIRST
+      let listingResult = null;
+      if (formData.buyNowPrice && walletClient && domain?.tokenId) {
         console.log('Debug - Connected wallet:', walletClient.account.address);
-        console.log('Debug - Domain owner:', updatedDomain.owner);
+        console.log('Debug - Domain owner:', domain.owner);
         
         // Check if the connected wallet is the owner of the domain
-        if (walletClient.account.address.toLowerCase() !== updatedDomain.owner.toLowerCase()) {
-          alert(`You must be the owner of this domain to list it for sale. Connected wallet: ${walletClient.account.address}, Domain owner: ${updatedDomain.owner}`)
+        if (walletClient.account.address.toLowerCase() !== domain.owner.toLowerCase()) {
+          alert(`You must be the owner of this domain to list it for sale. Connected wallet: ${walletClient.account.address}, Domain owner: ${domain.owner}`)
           setPublishing(false)
           return
         }
@@ -256,12 +255,12 @@ export function PageEditor({ tokenId, initialDomain, onSave }: PageEditorProps) 
           // For database domains, this will be in the contractAddress field
           let contractAddress = "0x424bDf2E8a6F52Bd2c1C81D9437b0DC0309DF90f"; // Doma testnet ownership token address
           
-          if (updatedDomain.contractAddress) {
+          if (domain.contractAddress) {
             // Database domain
-            contractAddress = updatedDomain.contractAddress;
-          } else if (updatedDomain.tokenAddress) {
+            contractAddress = domain.contractAddress;
+          } else if (domain.tokenAddress) {
             // Blockchain domain
-            contractAddress = updatedDomain.tokenAddress;
+            contractAddress = domain.tokenAddress;
           }
           
           console.log('Using contract address:', contractAddress);
@@ -316,13 +315,13 @@ export function PageEditor({ tokenId, initialDomain, onSave }: PageEditorProps) 
             };
           }
 
-          // Create listing using Doma Orderbook SDK
-          const listingResult = await createDomaListing(
+          // Create listing using Doma Orderbook SDK FIRST
+          listingResult = await createDomaListing(
             {
               contractAddress: contractAddress,
-              tokenId: updatedDomain.tokenId,
+              tokenId: domain.tokenId,
               price: formData.buyNowPrice,
-              sellerAddress: updatedDomain.owner,
+              sellerAddress: domain.owner,
             },
             walletClient,
             'eip155:97476',
@@ -343,9 +342,20 @@ export function PageEditor({ tokenId, initialDomain, onSave }: PageEditorProps) 
               console.error('Error status:', (listingError as any).status);
             }
           }
-          alert(`Domain published but failed to list: ${listingError instanceof Error ? listingError.message : 'Unknown error'}`);
+          alert(`Failed to list domain on blockchain: ${listingError instanceof Error ? listingError.message : 'Unknown error'}`);
+          setPublishing(false);
+          return; // Don't proceed with saving to database if blockchain listing fails
         }
       }
+      
+      // ONLY update database AFTER successful blockchain listing
+      const updatedDomain = await updateDomain(domain.tokenId, { 
+        ...formData, 
+        isActive: true,
+        forSale: true,
+        customCSS: JSON.stringify(customization)
+      })
+      console.log('Domain updated, updatedDomain:', updatedDomain);
       
       // Redirect to the landing page after successful publication
       if (updatedDomain?.name) {

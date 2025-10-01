@@ -4,6 +4,7 @@
 import { useState } from 'react'
 import { DomaOffer } from '@/types/doma'
 import { useWallet } from '@/hooks/useWallet'
+import { formatWeiToEth } from '@/utils/tokenIdUtils'
 
 interface OfferCardProps {
   offer: DomaOffer
@@ -79,7 +80,7 @@ export default function OfferCard({
         <div className="flex-1">
           <div className="flex items-center space-x-3 mb-2">
             <h3 className="text-lg font-semibold text-gray-900">
-              {offer.amount} ETH
+              {formatWeiToEth(offer.amount)} ETH
             </h3>
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(offer.status || 'UNKNOWN')}`}>
               {(offer.status || 'UNKNOWN').charAt(0) + (offer.status || 'UNKNOWN').slice(1).toLowerCase()}

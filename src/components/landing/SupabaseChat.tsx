@@ -3,12 +3,14 @@
 import { useState, useEffect } from 'react'
 import { useAccount } from 'wagmi'
 import { useRealtimeChat } from '@/hooks/useRealTimeChat'
-import { ChatMessage as PrismaChatMessage, ChatConversation, Domain } from '@prisma/client'
+import { ChatMessage as PrismaChatMessage, ChatConversation } from '@prisma/client'
 import { formatAddress } from '@/lib/utils'
 import { supabase } from '@/lib/supabase';
 import { useWalletClient } from 'wagmi';
-import { createDomaOffer, fetchDomaCurrencies } from '@/lib/domaOrderbookSdk';
+import { createDomaOffer, getDomaSupportedCurrencies } from '@/lib/domaOrderbookSdk';
 import { useDomainData } from '@/hooks/useDomainData';
+import { RealtimePostgresChangesPayload, REALTIME_SUBSCRIBE_STATES } from '@supabase/supabase-js';
+import { DomaOffer } from '@/types/doma';
 
 interface SupabaseChatProps {
   domainId: string // This should be the Prisma `id`, not `tokenId`
@@ -27,8 +29,6 @@ function ChatInterface({
   isLoading,
   onSendMessage,
   currentUserAddress,
-  domainId,
-  ownerAddress,
   isOwner,
   conversationId,
   tokenId
@@ -37,8 +37,6 @@ function ChatInterface({
   isLoading: boolean,
   onSendMessage: (content: string, type: 'text' | 'offer' | 'system') => Promise<void>,
   currentUserAddress: string,
-  domainId: string,
-  ownerAddress: string,
   isOwner: boolean,
   conversationId: string | null,
   tokenId: string
@@ -68,7 +66,8 @@ function ChatInterface({
     setIsSending(true);
     try {
       // Get supported currencies for the domain using the helper function
-      const currency = await fetchDomaCurrencies(domainData.contractAddress, 'eip155:97476', 'DOMA');
+      const currencies = await getDomaSupportedCurrencies('eip155:97476', domainData.contractAddress);
+      const currency = currencies?.[0];
 
       // 1. Create the on-chain offer using the Doma SDK
       const offerResult = await createDomaOffer({
@@ -76,13 +75,13 @@ function ChatInterface({
         tokenId: domainData.tokenId,
         price: offerAmount,
         buyerAddress: currentUserAddress,
-      }, walletClient, 'eip155:97476', undefined, currency);
+      }, walletClient, 'eip155:97476', undefined);
 
-      if (!offerResult?.orders?.[0]?.id) {
+      if (!offerResult?.orders?.[0]?.orderId) {
         throw new Error('Failed to create on-chain offer or receive order ID.');
       }
 
-      const orderId = offerResult.orders[0].id;
+      const orderId = offerResult.orders[0].orderId;
 
       // 2. Send the created orderId to our backend to log it
       const response = await fetch('/api/chat/create-offer', {
@@ -113,7 +112,14 @@ function ChatInterface({
       setShowOfferForm(false);
     } catch (error) {
       console.error('Failed to send offer:', error);
-      alert(`Failed to make offer: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      let errorMessage = 'Unknown error';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        // Try to get message from any object, or stringify the whole object
+        errorMessage = (error as any).message || JSON.stringify(error);
+      }
+      alert(`Failed to make offer: ${errorMessage}`);
     } finally {
       setIsSending(false);
     }
@@ -142,8 +148,8 @@ function ChatInterface({
         .then(data => data.offers || []);
 
       // Find the most recent pending offer with the matching amount from the same buyer
-      const offer = offers.find((o: any) => 
-        parseFloat(o.amount) === parseFloat(offerAmount) && 
+      const offer = offers.find((o: DomaOffer) => 
+        o.amount && parseFloat(o.amount) === parseFloat(offerAmount) && 
         o.buyer === message.senderAddress && 
         o.status === 'PENDING'
       );
@@ -208,8 +214,8 @@ function ChatInterface({
         .then(data => data.offers || []);
 
       // Find the most recent pending offer with the matching amount from the same buyer
-      const offer = offers.find((o: any) => 
-        parseFloat(o.amount) === parseFloat(offerAmount) && 
+      const offer = offers.find((o: DomaOffer) => 
+        o.amount && parseFloat(o.amount) === parseFloat(offerAmount) && 
         o.buyer === message.senderAddress && 
         o.status === 'PENDING'
       );
@@ -239,7 +245,7 @@ function ChatInterface({
         throw new Error(errorData.error || 'Failed to reject offer');
       }
 
-      const result = await response.json();
+      await response.json();
 
       // Notify that rejection was successful
       await onSendMessage(`✅ Offer rejection processed successfully.`, 'system');
@@ -442,7 +448,7 @@ export function SupabaseChat({ domainId, ownerAddress, domainName, tokenId }: Su
       try {
         const res = await fetch(`/api/chat/conversations-for-domain?domainId=${domainId}`);
         if (!res.ok) throw new Error('Failed to fetch conversations');
-        const data = await res.json();
+        const data: ConversationWithDetails[] = await res.json();
         setConversations(data);
       } catch (error) {
         console.error("Failed to fetch owner conversations", error);
@@ -465,13 +471,13 @@ export function SupabaseChat({ domainId, ownerAddress, domainName, tokenId }: Su
           table: 'chat_conversations',
           filter: `domainId=eq.${domainId}`
         },
-        (payload) => {
+        (payload: RealtimePostgresChangesPayload<ChatConversation>) => {
           console.log('Change detected in conversations, refetching...', payload);
           // Re-fetch the entire list to get updated order and message previews
           fetchConversations();
         }
       )
-      .subscribe((status, err) => {
+      .subscribe((status: `${REALTIME_SUBSCRIBE_STATES}`, err?: Error) => {
         if (status === 'SUBSCRIBED') {
           console.log(`Subscribed to conversation updates for domain ${domainId}`);
         }
@@ -496,8 +502,6 @@ export function SupabaseChat({ domainId, ownerAddress, domainName, tokenId }: Su
         isLoading={isLoading} 
         onSendMessage={sendMessage} 
         currentUserAddress={currentUserAddress!}
-        domainId={domainId}
-        ownerAddress={ownerAddress}
         isOwner={false}
         conversationId={conversationId}
         tokenId={tokenId}
@@ -539,8 +543,6 @@ export function SupabaseChat({ domainId, ownerAddress, domainName, tokenId }: Su
               isLoading={isLoading} 
               onSendMessage={sendMessage} 
               currentUserAddress={currentUserAddress!}
-              domainId={domainId}
-              ownerAddress={ownerAddress}
               isOwner={true}
               conversationId={selectedConvo.id}
               tokenId={tokenId}
