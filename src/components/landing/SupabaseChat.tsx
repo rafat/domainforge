@@ -135,68 +135,61 @@ function ChatInterface({
   }
 
   const handleAcceptOffer = async (messageId: string) => {
-    if (!isOwner) return
-    
+    if (!isOwner || !walletClient) {
+      alert('Only the domain owner can accept offers and wallet must be connected.');
+      return;
+    }
+
     try {
-      // Extract offer amount from the message content
       const message = messages.find(msg => msg.id === messageId);
-      if (!message) {
-        throw new Error('Message not found');
-      }
+      if (!message) throw new Error('Message not found');
 
-      const match = message.content.match(/💰 New offer: ([\d.]+) ETH/);
-      if (!match) {
-        throw new Error('Could not extract offer amount from message');
-      }
+      const offerAmountMatch = message.content.match(/💰 New offer: ([\d.]+) WETH/);
+      if (!offerAmountMatch) throw new Error('Could not extract offer amount from message');
+      const offerAmount = offerAmountMatch[1];
 
-      const offerAmount = match[1];
-      
-      // Find the corresponding offer in the database using tokenId
-      const offers = await fetch(`/api/domains/${tokenId}/offers`)
-        .then(res => res.json())
-        .then(data => data.offers || []);
-
-      // Find the most recent pending offer with the matching amount from the same buyer
+      const offers = await fetch(`/api/domains/${tokenId}/offers`).then(res => res.json()).then(data => data.offers || []);
+      console.log("offers", offers);
       const offer = offers.find((o: DomaOffer) => 
         o.amount && parseFloat(o.amount) === parseFloat(offerAmount) && 
-        o.buyer === message.senderAddress && 
+        o.buyer && message.senderAddress && o.buyer.toLowerCase() === message.senderAddress.toLowerCase() && 
         o.status === 'PENDING'
       );
-
-      if (!offer) {
-        throw new Error('Corresponding offer not found in database');
-      }
-
-      // Send a system message indicating the offer is being processed
-      const processingMessage = `✅ Offer accepted! Processing transaction for ${offerAmount} ETH...`
-      await onSendMessage(processingMessage, 'system')
       
-      // Call the API to accept the offer and execute the blockchain transaction
-      const response = await fetch(`/api/offers/${offer.id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'accept',
-          sellerAddress: currentUserAddress,
-        }),
-      });
+      console.log("offer", offer);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to accept offer');
+      if (!offer) throw new Error('Corresponding offer not found in database');
+
+      const orderId = offer.txHash; // Get orderId from txHash
+      if (!orderId) throw new Error('Offer is missing the on-chain order ID (txHash).');
+
+      const { acceptDomaOffer } = await import('@/lib/domaOrderbookSdk');
+      const result = await acceptDomaOffer(orderId, walletClient);
+
+      if (result) {
+        alert('Offer accepted successfully! The domain has been transferred.');
+        await onSendMessage(`🎉 Offer for ${offerAmount} WETH accepted!`, 'system');
+
+        // Now, clean up the database
+        const deleteResponse = await fetch(`/api/domains/${tokenId}`, {
+          method: 'DELETE',
+        });
+
+        if (deleteResponse.ok) {
+          console.log('Domain and related records removed from database successfully.');
+          // Optionally, you could add logic here to refresh the UI or redirect the user
+        } else {
+          const errorData = await deleteResponse.json();
+          console.error('Failed to remove domain from database after accepting offer:', errorData);
+          alert('Blockchain transaction was successful, but failed to clean up the database.');
+        }
+      } else {
+        throw new Error('Failed to accept offer on blockchain.');
       }
-
-      const result = await response.json();
-
-      // Send success message
-      const successMessage = `🎉 Transaction completed! Offer accepted for ${offerAmount} ETH. Transaction hash: ${result.txHash || 'N/A'}`
-      await onSendMessage(successMessage, 'system');
     } catch (error) {
-      console.error('Failed to accept offer:', error)
-      const errorMessage = `❌ Failed to accept offer: ${error instanceof Error ? error.message : 'Unknown error'}`;
-      await onSendMessage(errorMessage, 'system');
+      console.error('Failed to accept offer:', error);
+      alert(`Failed to accept offer: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      await onSendMessage(`❌ Failed to accept offer: ${error instanceof Error ? error.message : 'Unknown error'}`, 'system');
     }
   }
 

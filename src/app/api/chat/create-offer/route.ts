@@ -17,19 +17,23 @@ export async function POST(request: Request) {
           select: { domainId: true },
         });
     
-        if (!conversation) {
-          return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
-        }
-    
-        // Create the offer in the database
-        const offer = await prisma.offer.create({
+            if (!conversation) {
+              return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+            }
+        
+            const expiryDate = new Date();
+            expiryDate.setDate(expiryDate.getDate() + 1); // 1-day expiry
+        
+            // Create the offer in the database
+            const offer = await prisma.offer.create({
           data: {
             domain: { connect: { id: conversation.domainId } }, // Connect using the domainId from the conversation
-            buyer: senderAddress,
+            buyer: senderAddress.toLowerCase(),
             amount: amount.toString(),
             message: message || null,
             status: 'PENDING',
-            externalId: orderId, // Store the on-chain order ID
+            txHash: orderId, // Store the on-chain order ID in txHash
+            expiry: expiryDate,
           },
         });
     
