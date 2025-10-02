@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react'
 import { DomaOffer } from '@/types/doma'
-import { formatAddress, timeAgo, formatPrice } from '@/lib/utils'
+import { formatAddress, timeAgo, formatPrice, formatWeiToEth } from '@/lib/utils'
 import { useDoma } from '@/hooks/useDoma'
 
 interface OffersListProps {

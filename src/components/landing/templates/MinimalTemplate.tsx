@@ -39,7 +39,7 @@ export function MinimalTemplate({ domain, customization }: TemplateProps) {
   }
 
   // Check if current user is the owner
-  const isOwner = isConnected && address && domain.owner.toLowerCase() === address.toLowerCase();
+  const isOwner = !!isConnected && !!address && domain.owner.toLowerCase() === address.toLowerCase();
 
   // Sort offers by price in descending order (highest first)
   const sortedOffers = [...offers].sort((a, b) => {

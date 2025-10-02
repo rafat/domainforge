@@ -1,6 +1,7 @@
 // src/lib/utils.ts
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { formatUnits } from 'viem'
 import { DomaDomain as Domain } from '@/types/doma'
 
 export function cn(...inputs: ClassValue[]) {
@@ -25,6 +26,18 @@ export function timeAgo(date: Date): string {
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
   return `${Math.floor(diffInSeconds / 86400)}d ago`
+}
+
+export function formatWeiToEth(wei: string | bigint): string {
+  try {
+    // Convert to BigInt if it's a string
+    const weiValue = typeof wei === 'string' ? BigInt(wei) : wei;
+    // Convert from wei (18 decimals) to eth
+    return formatUnits(weiValue, 18);
+  } catch (error) {
+    console.error('Error converting wei to eth:', error);
+    return '0';
+  }
 }
 
 export function generateSEOMetadata(domain: Domain) {

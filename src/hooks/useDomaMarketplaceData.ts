@@ -104,7 +104,7 @@ export function useDomaMarketplaceData({ tokenId }: UseDomaMarketplaceDataProps)
       }
 
       // 2. If blockchain transaction is successful, update the database
-      const response = await fetch(`/api/domains/${activeListing.tokenId}/buy`, {
+      const response = await fetch(`/api/domains/${tokenId}/buy`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

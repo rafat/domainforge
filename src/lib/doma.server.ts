@@ -17,6 +17,7 @@ import {
   createDomaOrderbookClient, 
   OrderbookType 
 } from '@doma-protocol/orderbook-sdk';
+import { prisma } from './db'
 
 // Get API endpoints from environment variables
 const DOMA_SUBGRAPH_URL = process.env.NEXT_PUBLIC_DOMA_SUBGRAPH_URL || 'https://api-testnet.doma.xyz/graphql'
@@ -105,7 +106,7 @@ class DomaApiClient {
     return result.data
   }
 
-  private async restRequest(endpoint: string, options: RequestInit = {}) {
+  public async restRequest(endpoint: string, options: RequestInit = {}) {
     const url = `${this.apiUrl}${endpoint}`
     console.log(`Making request to ${url}`);
     console.log('Request options:', JSON.stringify(options, null, 2));
