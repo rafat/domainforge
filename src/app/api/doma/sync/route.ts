@@ -49,12 +49,13 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString(),
       skipped: false
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in Doma synchronization:', error)
+    const message = error instanceof Error ? error.message : 'Unknown error occurred';
     return NextResponse.json(
       { 
         success: false, 
-        error: error.message,
+        error: message,
         timestamp: new Date().toISOString()
       },
       { status: 500 }

@@ -61,10 +61,11 @@ export async function POST(request: NextRequest) {
     };
     
     return NextResponse.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error in Doma currencies proxy:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error occurred';
     return NextResponse.json(
-      { error: 'Failed to fetch Doma currencies', details: { message: error.message, stack: error.stack } },
+      { error: 'Failed to fetch Doma currencies', details: { message } },
       { status: 500 }
     );
   }
