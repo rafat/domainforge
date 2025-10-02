@@ -7,6 +7,8 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const domainId = searchParams.get('domainId')
 
+  console.log('Request to /api/chat/conversations-for-domain with domainId:', domainId);
+
   if (!domainId) {
     return NextResponse.json({ error: 'domainId is required' }, { status: 400 })
   }

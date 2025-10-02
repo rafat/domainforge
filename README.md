@@ -4,7 +4,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Project Overview
 
-DomainForge is a no-code platform for creating beautiful, SEO-optimized sales pages for Doma-tokenized domains with integrated on-chain negotiation via real-time chat.
+DomainForge is a platform for creating landing pages for Doma-tokenized domains with integrated on-chain negotiation via real-time chat.
 
 ## Enhanced Doma Protocol Integration
 
@@ -20,15 +20,9 @@ DomainForge now features enhanced integration with Doma Protocol including:
 DomainForge now includes enhanced real-time chat functionality:
 - Offer integration with Doma's Orderbook API
 - Real-time offer status tracking using Poll API
-- Real-time notifications for offer updates
-- System messages for offer events
-- Notification badges in chat widget
 - Persistent conversations with database storage
 - Message history across sessions
-- Unread message tracking
-- Message deduplication and synchronization
-- Improved reliability and network resilience
-- **NEW: Chat-based offer creation and acceptance** - Buyers can make offers directly through the chat interface, and sellers can accept/reject them with on-chain transaction execution
+- Chat-based offer creation and acceptance - Buyers can make offers directly through the chat interface, and sellers can accept/reject them with on-chain transaction execution
 
 ## Getting Started
 
@@ -51,12 +45,7 @@ bun install
    cp .env.example .env
    ```
 
-2. Get a WalletConnect Project ID from [WalletConnect Cloud](https://cloud.walletconnect.com/) and add it to your `.env` file:
-   ```bash
-   NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id_here
-   ```
-
-3. Set up your database URL in the `.env` file:
+2. Set up your database URL in the `.env` file:
    ```bash
    DATABASE_URL=postgresql://user:password@localhost:5432/domainforge
    ```

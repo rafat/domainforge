@@ -101,11 +101,11 @@ export function CorporateTemplate({ domain, customization }: TemplateProps) {
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="border border-gray-200 rounded-lg p-4">
                     <div className="text-sm text-gray-600">Token ID</div>
-                    <div className="font-mono text-sm mt-1">{domain.tokenId}</div>
+                    <div className="font-mono text-sm mt-1">{domain.tokenId.slice(0, 10)}...</div>
                   </div>
                   <div className="border border-gray-200 rounded-lg p-4">
                     <div className="text-sm text-gray-600">Owner</div>
-                    <div className="font-mono text-sm mt-1">{domain.owner}</div>
+                    <div className="font-mono text-sm mt-1">{domain.owner.slice(0, 10)}...</div>
                   </div>
                   <div className="border border-gray-200 rounded-lg p-4">
                     <div className="text-sm text-gray-600">Blockchain</div>

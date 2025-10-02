@@ -12,6 +12,10 @@ import { useDomainData } from '@/hooks/useDomainData';
 import { RealtimePostgresChangesPayload, REALTIME_SUBSCRIBE_STATES } from '@supabase/supabase-js';
 import { DomaOffer } from '@/types/doma';
 
+import { useBalance } from 'wagmi';
+
+const WETH_CONTRACT_ADDRESS = '0x6f898cd313dcEe4D28A87F675BD93C471868B0Ac';
+
 interface SupabaseChatProps {
   domainId: string // This should be the Prisma `id`, not `tokenId`
   ownerAddress: string
@@ -48,6 +52,11 @@ function ChatInterface({
   const [offerMessage, setOfferMessage] = useState('')
   const { data: walletClient } = useWalletClient();
   const { domain: domainData } = useDomainData(tokenId);
+
+  const { data: wethBalance } = useBalance({
+    address: currentUserAddress as `0x${string}` | undefined,
+    token: WETH_CONTRACT_ADDRESS as `0x${string}`,
+  });
 
   const handleSendMessage = async () => {
     if (!newMessage.trim()) return
@@ -353,8 +362,13 @@ function ChatInterface({
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Offer Amount (ETH)
+                  Offer Amount (WETH)
                 </label>
+                {wethBalance && (
+                  <p className="text-xs text-gray-500 mb-1">
+                    Your balance: {wethBalance.formatted} {wethBalance.symbol}
+                  </p>
+                )}
                 <input
                   type="number"
                   step="0.001"
@@ -430,9 +444,17 @@ function ChatInterface({
 }
 
 
+function normalizeAddress(address: string): string {
+  const prefix = 'eip155:97476:';
+  if (address.toLowerCase().startsWith(prefix)) {
+    return address.substring(prefix.length);
+  }
+  return address;
+}
+
 export function SupabaseChat({ domainId, ownerAddress, domainName, tokenId }: SupabaseChatProps) {
   const { address: currentUserAddress, isConnected } = useAccount()
-  const isOwner = isConnected && currentUserAddress?.toLowerCase() === ownerAddress.toLowerCase()
+  const isOwner = isConnected && currentUserAddress && normalizeAddress(currentUserAddress).toLowerCase() === normalizeAddress(ownerAddress).toLowerCase()
 
   // State for the Owner's Inbox View
   const [conversations, setConversations] = useState<ConversationWithDetails[]>([])
@@ -510,11 +532,35 @@ export function SupabaseChat({ domainId, ownerAddress, domainName, tokenId }: Su
   }
 
   // --- OWNER'S VIEW LOGIC ---
+
+  // This component is instantiated when a conversation is selected.
+  // Its lifecycle is tied to the selection, ensuring the useRealtimeChat hook
+  // is mounted and unmounted cleanly.
+  function SelectedConversationChat({ conversation, ownerAddress, domainId, tokenId, currentUserAddress }: {
+    conversation: ConversationWithDetails;
+    ownerAddress: string;
+    domainId: string;
+    tokenId: string;
+    currentUserAddress: string;
+  }) {
+    const { messages, isLoading, sendMessage } = useRealtimeChat(domainId, conversation.buyerAddress, ownerAddress);
+
+    return (
+      <ChatInterface
+        messages={messages}
+        isLoading={isLoading}
+        onSendMessage={sendMessage}
+        currentUserAddress={currentUserAddress}
+        isOwner={true}
+        conversationId={conversation.id}
+        tokenId={tokenId}
+      />
+    );
+  }
+
   // The owner sees a list of conversations and can select one to chat in.
   function OwnerView() {
-    const selectedBuyerAddress = selectedConvo?.buyerAddress
-    const { messages, isLoading, sendMessage } = useRealtimeChat(domainId, selectedBuyerAddress, ownerAddress)
-
+    // The useRealtimeChat hook is no longer here.
     return (
       <div className="h-full flex">
         <div className="w-1/3 border-r overflow-y-auto">
@@ -538,14 +584,12 @@ export function SupabaseChat({ domainId, ownerAddress, domainName, tokenId }: Su
         </div>
         <div className="w-2/3">
           {selectedConvo ? (
-            <ChatInterface 
-              messages={messages} 
-              isLoading={isLoading} 
-              onSendMessage={sendMessage} 
-              currentUserAddress={currentUserAddress!}
-              isOwner={true}
-              conversationId={selectedConvo.id}
+            <SelectedConversationChat
+              conversation={selectedConvo}
+              ownerAddress={ownerAddress}
+              domainId={domainId}
               tokenId={tokenId}
+              currentUserAddress={currentUserAddress!}
             />
           ) : (
             <div className="h-full flex items-center justify-center">

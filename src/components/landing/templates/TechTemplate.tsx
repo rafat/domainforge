@@ -112,7 +112,7 @@ export function TechTemplate({ domain, customization }: TemplateProps)  {
                     </svg>
                     <span className="text-sm text-gray-400">Token ID</span>
                   </div>
-                  <div className="font-mono text-sm">{domain.tokenId}</div>
+                  <div className="font-mono text-sm">{domain.tokenId.slice(0, 10)}...</div>
                 </div>
                 
                 <div className="bg-gray-900/50 p-4 rounded-xl">
@@ -122,7 +122,7 @@ export function TechTemplate({ domain, customization }: TemplateProps)  {
                     </svg>
                     <span className="text-sm text-gray-400">Owner</span>
                   </div>
-                  <div className="font-mono text-sm">{domain.owner}</div>
+                  <div className="font-mono text-sm">{domain.owner.slice(0, 10)}...</div>
                 </div>
                 
                 <div className="bg-gray-900/50 p-4 rounded-xl">

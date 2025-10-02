@@ -221,7 +221,7 @@ export default function DomainDetailPage() {
     }
 
     // Use buyNowPrice if available, otherwise fallback to price
-    const purchasePrice = domain.buyNowPrice || domain.price
+    const purchasePrice = domain.buyNowPrice || domain.price?.toString()
 
     if (!purchasePrice) {
       alert('No purchase price available for this domain')
@@ -230,10 +230,11 @@ export default function DomainDetailPage() {
 
     try {
       // 1. Initiate blockchain transaction to buy the listing
-      const buyResult = await buyDomaListing({
-        orderId: currentListing.externalId, // Use externalId
-        buyerAddress: address!, // Use the connected wallet address as buyer
-      }, walletClient);
+      const buyResult = await buyDomaListing(
+        currentListing.externalId, // Pass orderId directly as first parameter
+        walletClient              // Pass walletClient as second parameter
+        // chainId will use default (eip155:97476)
+      );
 
       if (!buyResult) {
         throw new Error('Blockchain transaction failed or returned no result.');
@@ -248,17 +249,19 @@ export default function DomainDetailPage() {
         body: JSON.stringify({
           buyer: address,
           amount: purchasePrice,
-          orderId: currentListing.externalId, // Use externalId
-          txHash: buyResult.transactionHash || 'pending', // Use whatever transaction hash is available
+          orderId: currentListing.externalId,
+          txHash: buyResult.transactionHash || 'pending',
         }),
       })
 
       if (response.ok) {
-        alert('Purchase successful!')
-        fetchDomainDetails() // Refresh domain data
+        alert('Purchase successful! Domain ownership transferred.');
+        // Since the domain is now transferred, redirect to a different page
+        window.location.href = '/marketplace'; // Redirect to marketplace after purchase
       } else {
         const errorData = await response.json()
-        alert(`Purchase failed: ${errorData.error || 'Unknown error'}`)
+        alert(`Purchase completed on blockchain, but database cleanup failed: ${errorData.error || 'Unknown error'}`);
+        window.location.href = '/marketplace'; // Redirect anyway since purchase was completed
       }
     } catch (error) {
       console.error('Purchase failed:', error)
@@ -304,23 +307,22 @@ export default function DomainDetailPage() {
         // After successful offer acceptance, remove the domain and related data from our database
         // since the domain ownership has transferred and is no longer managed by this seller
         if (domain) {
-          try {
-            // Delete the domain and all its related records (cascade delete)
-            // This will remove: offers, transactions, dns_records, chat_conversations
-            await fetch(`/api/domains/${domain.tokenId}`, {
-              method: 'DELETE',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            });
+          const response = await fetch(`/api/domains/${domain.tokenId}`, {
+            method: 'DELETE',
+          });
+
+          if (response.ok) {
             console.log('Domain and related records removed from database successfully');
-          } catch (removeError) {
-            console.warn('Failed to remove domain and related data from database:', removeError);
-            // Continue even if database removal fails
+            alert('Offer accepted successfully on blockchain! Domain ownership transferred and records updated.');
+          } else {
+            const errorData = await response.json();
+            console.error('Failed to remove domain from database:', errorData);
+            alert(`Blockchain transaction was successful, but failed to clean up the domain from our database. Please contact support. Error: ${errorData.details || 'Unknown error'}`);
           }
+        } else {
+          alert('Offer accepted successfully on blockchain! Domain ownership transferred.');
         }
         
-        alert('Offer accepted successfully on blockchain! Domain ownership transferred.');
         fetchDomainDetails(); // Refresh domain and offers data
       } else {
         throw new Error('Failed to accept offer on blockchain');
@@ -447,15 +449,18 @@ export default function DomainDetailPage() {
                   </button>
                 </div>
               )}
-                          {isOwner && (
-              <div className="text-center space-y-3">
-                <div className="text-sm text-gray-600 mb-3">You own this domain</div>
-                <a
-                  href="/profile"
-                  className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-200 font-medium inline-block"
-                >
-                  Manage Domain
-                </a>
+                          <div className="text-center space-y-3">
+                {isOwner && (
+                  <>
+                    <div className="text-sm text-gray-600 mb-3">You own this domain</div>
+                    <a
+                      href="/profile"
+                      className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-200 font-medium inline-block"
+                    >
+                      Manage Domain
+                    </a>
+                  </>
+                )}
                 {domain.isActive ? (
                   <a
                     href={`/landing/${domain.name}`}
@@ -466,15 +471,16 @@ export default function DomainDetailPage() {
                     View Published Page
                   </a>
                 ) : (
-                  <a
-                    href={`/profile?tab=builder&domain=${domain.tokenId}`}
-                    className="bg-blue-100 text-blue-700 px-6 py-3 rounded-lg hover:bg-blue-200 font-medium inline-block"
-                  >
-                    Create Landing Page
-                  </a>
+                  isOwner && (
+                    <a
+                      href={`/profile?tab=builder&domain=${domain.tokenId}`}
+                      className="bg-blue-100 text-blue-700 px-6 py-3 rounded-lg hover:bg-blue-200 font-medium inline-block"
+                    >
+                      Create Landing Page
+                    </a>
+                  )
                 )}
               </div>
-            )}
             </div>
           </div>
         </div>

@@ -42,23 +42,25 @@ export function useRealtimeChat(domainId: string, buyerAddress: string | null | 
       setIsLoading(true);
       setMessages([]); // Clear old messages immediately
       try {
-        const convResponse = await fetch('/api/chat/conversation', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ domainId, buyerAddress, sellerAddress }),
-        });
-        if (!convResponse.ok) throw new Error('Failed to establish conversation.');
-        
-        const conversation = await convResponse.json();
-        if (!conversation?.id) throw new Error('Invalid conversation response.');
-        
-        setConversationId(conversation.id);
+        const url = `/api/chat/conversation?domainId=${domainId}&buyerAddress=${buyerAddress}&sellerAddress=${sellerAddress}`;
+        const convResponse = await fetch(url);
 
-        const historyResponse = await fetch(`/api/chat/history?conversationId=${conversation.id}`);
-        if (!historyResponse.ok) throw new Error('Failed to fetch chat history.');
-        
-        const historicalMessages: PrismaChatMessage[] = await historyResponse.json();
-        setMessages(historicalMessages);
+        if (convResponse.ok) {
+          const conversation = await convResponse.json();
+          if (!conversation?.id) throw new Error('Invalid conversation response.');
+          setConversationId(conversation.id);
+
+          const historyResponse = await fetch(`/api/chat/history?conversationId=${conversation.id}`);
+          if (!historyResponse.ok) throw new Error('Failed to fetch chat history.');
+          
+          const historicalMessages: PrismaChatMessage[] = await historyResponse.json();
+          setMessages(historicalMessages);
+        } else if (convResponse.status === 404) {
+          // Conversation doesn't exist yet. This is fine.
+          // Do nothing, conversationId will remain null.
+        } else {
+          throw new Error('Failed to fetch conversation.');
+        }
       } catch (error) {
         console.error("Error initializing conversation:", error);
         setMessages([]);
@@ -111,14 +113,37 @@ export function useRealtimeChat(domainId: string, buyerAddress: string | null | 
   }, [conversationId, isBrowser]);
 
   const sendMessage = async (content: string, messageType: 'text' | 'offer' | 'system' = 'text') => {
-    if (!currentUserAddress || !content.trim() || !conversationId || !isBrowser) {
+    if (!currentUserAddress || !content.trim() || !isBrowser) {
         throw new Error("Cannot send message, chat not fully initialized.")
     }
+
+    let convId = conversationId;
+
+    // If no conversation exists, create one first.
+    if (!convId) {
+      console.log("No conversation found, creating one...");
+      const convResponse = await fetch('/api/chat/conversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domainId, buyerAddress, sellerAddress }),
+      });
+      if (!convResponse.ok) throw new Error('Failed to create conversation.');
+      const newConversation = await convResponse.json();
+      if (!newConversation?.id) throw new Error('Invalid conversation response.');
+      
+      convId = newConversation.id;
+      setConversationId(newConversation.id); // This will trigger subscription effect
+    }
+
+    if (!convId) {
+      throw new Error("Could not create or find conversation.");
+    }
+
     const response = await fetch('/api/chat/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          conversationId, 
+          conversationId: convId, 
           senderAddress: currentUserAddress, 
           content, 
           messageType 

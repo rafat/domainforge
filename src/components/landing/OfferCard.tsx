@@ -77,10 +77,11 @@ export function OfferCard({
     setError(null);
     
     try {
-      const result = await acceptDomaOffer({
-        orderId: offer.externalId, // Use the on-chain order ID
-        buyerAddress: address, // The seller is the one "buying" to fulfill the offer
-      }, walletClient);
+      const result = await acceptDomaOffer(
+        offer.externalId, // Pass orderId directly as first parameter
+        walletClient      // Pass walletClient as second parameter
+        // chainId will use default (eip155:97476)
+      );
 
       console.log('Offer accepted, transaction result:', result);
       alert('Offer accepted successfully! Transaction has been sent.');

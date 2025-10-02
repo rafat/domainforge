@@ -123,7 +123,23 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, owner, registrationPeriod, price, forSale, tokenId } = body
+    const { 
+      name, 
+      owner, 
+      registrationPeriod, 
+      price, 
+      forSale, 
+      tokenId,
+      title,
+      description,
+      template,
+      customCSS,
+      buyNowPrice,
+      acceptOffers,
+      isActive,
+      metaTitle,
+      metaDescription
+    } = body
 
     // Validate required fields
     if (!name || !owner || !tokenId) {
@@ -144,8 +160,13 @@ export async function POST(request: NextRequest) {
         const updatedDomain = await prisma.domain.update({
           where: { id: existingDomain.id },
           data: {
-            ...existingDomain,
             ...body,
+            expiry: body.expiry ? new Date(body.expiry) : undefined,
+            price: body.price !== undefined ? parseFloat(String(body.price)) : null,
+            buyNowPrice: body.buyNowPrice !== undefined ? String(body.buyNowPrice) : null,
+            forSale: body.forSale !== undefined ? Boolean(body.forSale) : existingDomain.forSale,
+            acceptOffers: body.acceptOffers !== undefined ? Boolean(body.acceptOffers) : existingDomain.acceptOffers,
+            isActive: body.isActive !== undefined ? Boolean(body.isActive) : existingDomain.isActive,
             updatedAt: new Date()
           }
         })
@@ -171,8 +192,17 @@ export async function POST(request: NextRequest) {
         chainId: domaTestnet.id, // default to mainnet
         registrationDate: now,
         expiry: expiryDate,
-        price: price ? parseFloat(price) : null,
+        price: price ? parseFloat(String(price)) : null,
         forSale: forSale || false,
+        title: title || null,
+        description: description || null,
+        template: template || 'minimal',
+        customCSS: customCSS || null,
+        buyNowPrice: buyNowPrice !== undefined ? String(buyNowPrice) : null,
+        acceptOffers: acceptOffers !== undefined ? Boolean(acceptOffers) : true,
+        isActive: isActive !== undefined ? Boolean(isActive) : true,
+        metaTitle: metaTitle || null,
+        metaDescription: metaDescription || null,
         tokenId: tokenId
       }
     })

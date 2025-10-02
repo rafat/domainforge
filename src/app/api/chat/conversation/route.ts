@@ -8,6 +8,42 @@ function normalizeAddress(address: string): string {
   return address;
 }
 
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const domainId = searchParams.get('domainId');
+  const buyerAddress = searchParams.get('buyerAddress');
+  const sellerAddress = searchParams.get('sellerAddress');
+
+  if (!domainId || !buyerAddress || !sellerAddress) {
+    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+  }
+
+  try {
+    const normalizedBuyerAddress = normalizeAddress(buyerAddress).trim().toLowerCase();
+    const normalizedSellerAddress = normalizeAddress(sellerAddress).trim().toLowerCase();
+
+    // Find conversation, trying both directions for buyer/seller
+    const conversation = await prisma.chatConversation.findFirst({
+      where: {
+        domainId,
+        OR: [
+          { buyerAddress: normalizedBuyerAddress, sellerAddress: normalizedSellerAddress },
+          { buyerAddress: normalizedSellerAddress, sellerAddress: normalizedBuyerAddress },
+        ],
+      },
+    });
+
+    if (conversation) {
+      return NextResponse.json(conversation);
+    } else {
+      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+    }
+  } catch (error) {
+    console.error('Error in GET /api/chat/conversation:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const { domainId, buyerAddress, sellerAddress } = await request.json()

@@ -7,6 +7,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { domaApi } from '@/lib/domaApi';
 import { usePublicClient, useWalletClient } from 'wagmi';
 import { parseUnits } from 'viem';
+import { buyDomaListing } from '@/lib/domaOrderbookSdk';
 
 interface UseDomaMarketplaceDataProps {
   tokenId: string;
@@ -84,41 +85,48 @@ export function useDomaMarketplaceData({ tokenId }: UseDomaMarketplaceDataProps)
   }, [fetchDomaData]);
 
   const handleBuyNow = async (activeListing: DomaListing) => {
-    if (!activeListing || !address || !walletClient || !publicClient) {
+    if (!activeListing || !address || !walletClient) {
       alert('Cannot proceed with purchase. Missing listing data or wallet connection.');
       return;
     }
 
     setIsBuying(true);
     try {
-      // 1. Get fulfillment data from Doma API
-      const fulfillmentData = await domaApi.getListingFulfillmentData(
-        activeListing.externalId,
-        address
+      // 1. Buy the listing using the Doma SDK
+      const buyResult = await buyDomaListing(
+        activeListing.externalId, // Pass the order ID
+        walletClient // Pass the wallet client
+        // chainId will use default (eip155:97476)
       );
 
-      if (!fulfillmentData || !fulfillmentData.parameters) {
-        throw new Error('Failed to get listing fulfillment data.');
+      if (!buyResult) {
+        throw new Error('Blockchain transaction failed or returned no result.');
       }
 
-      // 2. Prepare transaction using viem
-      const { parameters } = fulfillmentData;
-      const transactionRequest = {
-        account: address,
-        to: parameters.conduitKey, // Or the appropriate contract address from fulfillmentData
-        data: parameters.data, // The calldata for the transaction
-        value: parseUnits(activeListing.price.toString(), activeListing.currency.decimals), // Convert price to BigInt
-        // gas: parameters.gas, // Optional: if gas limit is provided
-      };
+      // 2. If blockchain transaction is successful, update the database
+      const response = await fetch(`/api/domains/${activeListing.tokenId}/buy`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          buyer: address,
+          amount: activeListing.price,
+          orderId: activeListing.externalId,
+          txHash: buyResult.transactionHash || 'pending',
+        }),
+      });
 
-      // 3. Send transaction via wallet client
-      const hash = await walletClient.sendTransaction(transactionRequest);
-      alert(`Transaction sent! Hash: ${hash}`);
-
-      // 4. Wait for transaction confirmation (optional but good UX)
-      // const receipt = await publicClient.waitForTransactionReceipt({ hash });
-      // alert(`Transaction confirmed! Block: ${receipt.blockNumber}`);
-
+      if (response.ok) {
+        alert('Purchase successful! Domain ownership transferred.');
+        // Refresh the data to reflect the purchase
+        fetchDomaData();
+      } else {
+        const errorData = await response.json();
+        console.error('Database update failed after successful purchase:', errorData);
+        // Still show success since blockchain transaction was successful
+        alert('Purchase successful on blockchain, but database update had issues. Please refresh the page.');
+      }
     } catch (error: any) {
       console.error('Failed to buy domain:', error);
       alert(`Failed to buy domain: ${error.message}`);

@@ -34,7 +34,7 @@ export async function POST(request: Request) {
         });
     
     // Create a chat message to reflect the new on-chain offer
-    const offerMessageContent = `💰 New offer: ${amount} ETH` + (message ? `\n${message}` : '');
+    const offerMessageContent = `💰 New offer: ${amount} WETH` + (message ? `\n${message}` : '');
     const chatMessage = await prisma.chatMessage.create({
       data: {
         conversationId,
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ 
       offer, 
       message: 'Offer created successfully',
-      chatMessage: offerMessage 
+      chatMessage: chatMessage 
     })
   } catch (error) {
     console.error('Failed to create offer from chat:', error)

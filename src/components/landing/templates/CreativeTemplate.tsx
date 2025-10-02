@@ -108,11 +108,11 @@ export function CreativeTemplate({ domain, customization }: TemplateProps)  {
             <div className="grid grid-cols-2 gap-4 mb-8">
               <div className="bg-white bg-opacity-10 p-4 rounded-lg backdrop-blur-sm">
                 <div className="text-sm text-gray-400">Blockchain</div>
-                <div className="font-medium">Doma Testnet</div>
+                <div className="font-medium text-gray-400">Doma Testnet</div>
               </div>
               <div className="bg-white bg-opacity-10 p-4 rounded-lg backdrop-blur-sm">
                 <div className="text-sm text-gray-400">Token ID</div>
-                <div className="font-mono text-sm">{domain.tokenId.slice(0, 8)}...</div>
+                <div className="font-mono text-sm text-gray-400">{domain.tokenId.slice(0, 8)}...</div>
               </div>
             </div>
           </div>

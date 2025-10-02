@@ -158,10 +158,7 @@ export async function createDomaOffer(
 }
 
 export async function buyDomaListing(
-  params: {
-    orderId: string;
-    buyerAddress: string;
-  },
+  orderId: any,
   walletClient: any,
   chainId: Caip2ChainId = 'eip155:97476' // Doma testnet
 ) {
@@ -172,20 +169,17 @@ export async function buyDomaListing(
     // Create a new SDK client instance
     const domaOrderbookClient = createClient();
     
-    // Buy listing using Doma SDK
-    // Note: The BuyListingParams only requires orderId, not fulfillerAddress
-    const listingParams: BuyListingParams = {
-      orderId: params.orderId,
-    };
     
     const onProgress: OnProgressCallback = (progress) => {
       console.log('Buying listing progress:', progress);
     };
     
     const result = await domaOrderbookClient.buyListing({
-      params: listingParams,
-      signer,
       chainId,
+      signer,
+      params: {
+        orderId,
+      },
       onProgress
     });
     
@@ -224,6 +218,7 @@ export async function acceptDomaOffer(
     throw error;
   }
 }
+
 
 export async function cancelDomaListing(
   params: {
