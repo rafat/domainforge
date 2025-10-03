@@ -1,12 +1,15 @@
-# DOMAINFORGE - No-Code Domain Sales Pages
-
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DOMAINFORGE
 
 ## Project Overview
 
-DomainForge is a platform for creating landing pages for Doma-tokenized domains with integrated on-chain negotiation via real-time chat and a marketplace. The project works on Doma testnet for now.
+DomainForge is a platform for creating landing pages for Doma-tokenized domains with integrated on-chain negotiation via real-time chat and a marketplace. The project works on Doma testnet for now. The chat is implemented using RLS enabled sql database instead of using XMTP. 
 
-## Enhanced Doma Protocol Integration
+The app is live at [Domain Forge](https://domainforge-eub1.vercel.app/)
+
+To use this app you'll need to be on the Doma testnet. You'll also need some ETH and
+WETH (if you plan to make any offers).
+
+## Doma Protocol Integration
 
 DomainForge now features enhanced integration with Doma Protocol including:
 - Comprehensive Subgraph API queries with rich domain data
@@ -15,7 +18,7 @@ DomainForge now features enhanced integration with Doma Protocol including:
 - Real-time event streaming via Poll API
 - Orderbook API integration for marketplace operations
 
-## Enhanced Real-time Chat Features
+## Real-time Chat Features
 
 DomainForge now includes enhanced real-time chat functionality:
 - Offer integration with Doma's Orderbook API
