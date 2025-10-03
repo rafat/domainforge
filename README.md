@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-DomainForge is a platform for creating landing pages for Doma-tokenized domains with integrated on-chain negotiation via real-time chat and a marketplace. The project works on Doma testnet for now. The chat is implemented using RLS enabled sql database instead of using XMTP. 
+DomainForge is a platform for creating landing pages for Doma-tokenized domains with integrated on-chain negotiation via real-time chat and a marketplace. The project works on Doma testnet for now. The chat is implemented using RLS enabled PostgreSQL database instead of using XMTP. 
 
 The app is live at [Domain Forge](https://domainforge-eub1.vercel.app/)
 

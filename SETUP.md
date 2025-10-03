@@ -355,9 +355,9 @@ npm run dev -- -p 3001
 # Check your Node.js version
 node --version
 
-# Install Node.js 18+ using nvm
-nvm install 18
-nvm use 18
+# Install Node.js 20 using nvm
+nvm install 20
+nvm use 20
 ```
 
 ### Database Management Commands

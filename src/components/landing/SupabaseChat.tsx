@@ -409,18 +409,18 @@ function ChatInterface({
           </button>
         )}
         
-        <div className="flex space-x-2">
+        <div className="flex items-center space-x-2">
           <textarea
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type your message..."
-            className="flex-1 border rounded-lg px-3 py-2 text-sm resize-none text-gray-900 bg-white"
+            className="flex-grow resize-none border rounded-lg px-3 py-2 text-sm text-gray-900 bg-white"
             disabled={isSending}
           />
           <button
             onClick={handleSendMessage}
             disabled={!newMessage.trim() || isSending}
-            className="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            className="flex-shrink-0 bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
           >
             {isSending ? 'Sending...' : 'Send'}
           </button>
