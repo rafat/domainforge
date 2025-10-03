@@ -291,9 +291,9 @@ function ChatInterface({
                   {isOfferMessage ? (
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
-                        <span className="text-green-600">💰</span>
+                        <span className="text-green-600"></span>
                         <span className={isOwnMessage ? 'text-white' : 'text-green-700 font-medium'}>
-                          Offer: {offerAmount} ETH
+                          {msg.content}
                         </span>
                       </div>
                       {msg.content.includes('\n') && (
@@ -308,12 +308,6 @@ function ChatInterface({
                             className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 transition-colors"
                           >
                             Accept
-                          </button>
-                          <button
-                            onClick={() => handleRejectOffer(msg.id)}
-                            className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 transition-colors"
-                          >
-                            Reject
                           </button>
                         </div>
                       )}

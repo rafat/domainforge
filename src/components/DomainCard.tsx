@@ -74,11 +74,6 @@ export default function DomainCard({ domain, onQuickOffer }: DomainCardProps) {
         <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
           <div className="flex items-center space-x-4">
             <span>Token #{tokenId ? formatTokenIdDisplay(tokenId) : 'N/A'}</span>
-            {domain.expiry && (
-              <span>
-                Expires: {new Date(domain.expiry).toLocaleDateString()}
-              </span>
-            )}
           </div>
         </div>
 
@@ -90,14 +85,6 @@ export default function DomainCard({ domain, onQuickOffer }: DomainCardProps) {
             View Details
           </Link>
           
-          {domain.forSale && !showQuickOffer && (
-            <button
-              onClick={() => setShowQuickOffer(true)}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-            >
-              Make Offer
-            </button>
-          )}
         </div>
 
                 {isOwner && domain.id && domain.tokenId && (

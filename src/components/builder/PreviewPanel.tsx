@@ -62,10 +62,6 @@ export function PreviewPanel({ domain, formData, customization }: PreviewPanelPr
     <div className="bg-gray-50 rounded-lg p-4">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold">Live Preview</h3>
-        <div className="flex space-x-2">
-          <button className="px-3 py-1 bg-white border rounded text-sm">Desktop</button>
-          <button className="px-3 py-1 border rounded text-sm text-gray-500">Mobile</button>
-        </div>
       </div>
       
       <div className="bg-white border rounded-lg overflow-hidden shadow-sm">

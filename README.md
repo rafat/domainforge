@@ -4,7 +4,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Project Overview
 
-DomainForge is a platform for creating landing pages for Doma-tokenized domains with integrated on-chain negotiation via real-time chat. The project works on Doma testnet for now.
+DomainForge is a platform for creating landing pages for Doma-tokenized domains with integrated on-chain negotiation via real-time chat and a marketplace. The project works on Doma testnet for now.
 
 ## Enhanced Doma Protocol Integration
 
