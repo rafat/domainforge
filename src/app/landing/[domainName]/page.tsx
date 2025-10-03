@@ -34,12 +34,9 @@ export default function LandingPage() {
       
       // First try to get from our database using domain name (exact match)
       const dbResponse = await fetch(`/api/domains?name=${domainName}`)
-      console.log('API Response Status:', dbResponse.status);
       if (dbResponse.ok) {
         const dbData = await dbResponse.json()
-        console.log('API Response Data:', dbData);
         if (dbData.domains && dbData.domains.length > 0) {
-          console.log('Domain Data:', dbData.domains[0]);
           setDomain(dbData.domains[0])
           return
         }
@@ -53,7 +50,35 @@ export default function LandingPage() {
     } finally {
       setLoading(false)
     }
-  }, [domainName])
+  }, [domainName]);
+
+  useEffect(() => {
+    if (domain && domain.tokenId && !domain.expiry) {
+      const fetchDomaData = async () => {
+        const query = `
+          query GetTokenAndDomainData($tokenId: String!) {
+            token(tokenId: $tokenId) {
+              expiresAt
+            }
+          }
+        `;
+        try {
+          const domaQueryRes = await fetch(`/api/doma/query`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, variables: { tokenId: domain.tokenId } }),
+          });
+          const domaQueryData = await domaQueryRes.json();
+          if (domaQueryData.data && domaQueryData.data.token) {
+            setDomain(prevDomain => prevDomain ? { ...prevDomain, expiry: domaQueryData.data.token.expiresAt } : null);
+          }
+        } catch (error) {
+          console.error('Failed to fetch Doma subgraph data:', error);
+        }
+      };
+      fetchDomaData();
+    }
+  }, [domain]);
 
   // Sync domain with blockchain when page loads
   const syncDomainWithBlockchain = useCallback(async (tokenId: string) => {
